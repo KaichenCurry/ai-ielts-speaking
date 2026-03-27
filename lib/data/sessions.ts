@@ -1,6 +1,8 @@
-import { getQuestionConfig, getSessionById, practiceSessions } from "@/lib/mock-data";
+import { getServerUser, isAdminEmail } from "@/lib/supabase/auth-server";
 import { createSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
 import type {
+  AdminPracticeSession,
+  AdminStudentSummary,
   GovernanceUpdateInput,
   LiveScoringResult,
   PracticeSession,
@@ -10,10 +12,15 @@ import type {
 function mapRecordToSession(record: PracticeSessionRecord): PracticeSession {
   return {
     id: record.id,
+    topicSlug: record.topic_slug,
+    topicTitle: record.topic_title,
+    questionId: record.question_id,
+    questionText: record.question_text,
+    questionIndex: record.question_index,
+    questionLabel: record.question_label,
     part: record.part,
-    title: record.title,
-    prompt: record.question,
     transcript: record.transcript,
+    durationSeconds: record.duration_seconds,
     createdAt: record.created_at,
     score: {
       total: Number(record.total_score),
@@ -29,6 +36,11 @@ function mapRecordToSession(record: PracticeSessionRecord): PracticeSession {
       priorities: record.priorities,
       nextStep: record.next_step,
       sampleAnswer: record.sample_answer || undefined,
+      improvedAnswer: record.improved_answer || undefined,
+      dimensionFeedback: record.dimension_feedback || undefined,
+      pronunciationFocus: record.pronunciation_focus || undefined,
+      sampleAnswerPronunciation: record.sample_answer_pronunciation || undefined,
+      improvedAnswerPronunciation: record.improved_answer_pronunciation || undefined,
     },
     riskFlag: record.risk_flag,
     riskReason: record.risk_reason || undefined,
@@ -43,14 +55,24 @@ function mapRecordToSession(record: PracticeSessionRecord): PracticeSession {
   };
 }
 
-function mapScoreToRecord(result: LiveScoringResult): PracticeSessionRecord {
-  const config = getQuestionConfig(result.part);
+function mapRecordToAdminSession(record: PracticeSessionRecord): AdminPracticeSession {
+  return {
+    ...mapRecordToSession(record),
+    userId: record.user_id,
+  };
+}
 
+function mapScoreToRecord(result: LiveScoringResult, userId: string): PracticeSessionRecord {
   return {
     id: result.sessionId,
+    user_id: userId,
     part: result.part,
-    title: config?.title || `${result.part.toUpperCase()} Practice`,
-    question: result.question,
+    topic_slug: result.topicSlug,
+    topic_title: result.topicTitle,
+    question_id: result.questionId,
+    question_text: result.questionText,
+    question_index: result.questionIndex ?? null,
+    question_label: result.questionLabel,
     transcript: result.transcript,
     duration_seconds: result.durationSeconds,
     total_score: result.score.total,
@@ -64,6 +86,11 @@ function mapScoreToRecord(result: LiveScoringResult): PracticeSessionRecord {
     priorities: result.feedback.priorities,
     next_step: result.feedback.nextStep,
     sample_answer: result.feedback.sampleAnswer || null,
+    improved_answer: result.feedback.improvedAnswer || null,
+    dimension_feedback: result.feedback.dimensionFeedback || null,
+    pronunciation_focus: result.feedback.pronunciationFocus || null,
+    sample_answer_pronunciation: result.feedback.sampleAnswerPronunciation || null,
+    improved_answer_pronunciation: result.feedback.improvedAnswerPronunciation || null,
     risk_flag: result.riskFlag,
     risk_reason: result.riskReason,
     confidence: result.confidence,
@@ -82,17 +109,29 @@ function mapScoreToRecord(result: LiveScoringResult): PracticeSessionRecord {
   };
 }
 
-export function mapLiveResultToPracticeSession(result: LiveScoringResult): PracticeSession {
-  return mapRecordToSession(mapScoreToRecord(result));
+async function getAccessContext() {
+  const user = await getServerUser();
+  return {
+    userId: user?.id ?? null,
+    isAdmin: isAdminEmail(user?.email),
+  };
 }
 
-export async function createPracticeSessionFromScore(result: LiveScoringResult) {
+export function mapLiveResultToPracticeSession(result: LiveScoringResult) {
+  return mapRecordToSession(mapScoreToRecord(result, "local-user"));
+}
+
+export async function createPracticeSessionFromScore(result: LiveScoringResult, userId: string) {
   if (!isSupabaseConfigured()) {
     return result.sessionId;
   }
 
+  if (!userId) {
+    throw new Error("Authentication required before persisting practice sessions.");
+  }
+
   const supabase = createSupabaseServerClient();
-  const record = mapScoreToRecord(result);
+  const record = mapScoreToRecord(result, userId);
   const { error } = await supabase.from("practice_sessions").upsert(record);
 
   if (error) {
@@ -107,7 +146,36 @@ export async function submitPracticeSessionAppeal(sessionId: string, appealNote:
     throw new Error("Supabase is not configured. Appeal submission requires database connectivity.");
   }
 
+  const { userId, isAdmin } = await getAccessContext();
+  if (!userId) {
+    throw new Error("Authentication required.");
+  }
+
   const supabase = createSupabaseServerClient();
+  let sessionQuery = supabase.from("practice_sessions").select("id, appeal_status").eq("id", sessionId);
+
+  if (!isAdmin) {
+    sessionQuery = sessionQuery.eq("user_id", userId);
+  }
+
+  const { data: currentSession, error: sessionError } = await sessionQuery.maybeSingle();
+
+  if (sessionError) {
+    throw new Error(`Failed to load practice session: ${sessionError.message}`);
+  }
+
+  if (!currentSession) {
+    throw new Error("Practice session not found.");
+  }
+
+  if (currentSession.appeal_status !== "none") {
+    throw new Error(
+      currentSession.appeal_status === "reviewed"
+        ? "This appeal has already been reviewed."
+        : "This appeal has already been submitted.",
+    );
+  }
+
   const now = new Date().toISOString();
   const payload = {
     appeal_status: "submitted",
@@ -116,16 +184,30 @@ export async function submitPracticeSessionAppeal(sessionId: string, appealNote:
     appeal_updated_at: now,
   };
 
-  const { error } = await supabase.from("practice_sessions").update(payload).eq("id", sessionId);
+  let query = supabase.from("practice_sessions").update(payload).eq("id", sessionId).eq("appeal_status", "none");
+  if (!isAdmin) {
+    query = query.eq("user_id", userId);
+  }
+
+  const { data, error } = await query.select("id").maybeSingle();
 
   if (error) {
     throw new Error(`Failed to submit appeal: ${error.message}`);
+  }
+
+  if (!data) {
+    throw new Error("Appeal state changed. Please refresh and try again.");
   }
 }
 
 export async function updatePracticeSessionGovernance(input: GovernanceUpdateInput) {
   if (!isSupabaseConfigured()) {
     throw new Error("Supabase is not configured. Governance actions require database connectivity.");
+  }
+
+  const { isAdmin } = await getAccessContext();
+  if (!isAdmin) {
+    throw new Error("Admin access required.");
   }
 
   const supabase = createSupabaseServerClient();
@@ -144,56 +226,256 @@ export async function updatePracticeSessionGovernance(input: GovernanceUpdateInp
     reviewed_at: now,
   };
 
-  const { error } = await supabase.from("practice_sessions").update(payload).eq("id", input.sessionId);
+  const { data, error } = await supabase
+    .from("practice_sessions")
+    .update(payload)
+    .eq("id", input.sessionId)
+    .select("id")
+    .maybeSingle();
 
   if (error) {
     throw new Error(`Failed to update governance state: ${error.message}`);
   }
+
+  if (!data) {
+    throw new Error("Practice session not found.");
+  }
 }
 
-export async function listPracticeSessions(): Promise<PracticeSession[]> {
+type PracticeSessionTimeRange = "24h" | "7d" | "30d";
+type PracticeSessionQueueFilter = "pending";
+
+function resolveCreatedAfter(timeRange: PracticeSessionTimeRange) {
+  const now = Date.now();
+
+  switch (timeRange) {
+    case "24h":
+      return new Date(now - 24 * 60 * 60 * 1000).toISOString();
+    case "7d":
+      return new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+    case "30d":
+      return new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
+    default:
+      return undefined;
+  }
+}
+
+type ListPracticeSessionsFilters = {
+  part?: PracticeSession["part"];
+  riskFlag?: boolean;
+  appealStatus?: PracticeSession["appealStatus"];
+  reviewStatus?: PracticeSession["reviewStatus"];
+  timeRange?: PracticeSessionTimeRange;
+  queue?: PracticeSessionQueueFilter;
+  keyword?: string;
+};
+
+export async function listPracticeSessions(filters?: ListPracticeSessionsFilters): Promise<AdminPracticeSession[]> {
   if (!isSupabaseConfigured()) {
-    return practiceSessions;
+    return [];
+  }
+
+  const { userId, isAdmin } = await getAccessContext();
+  if (!userId) {
+    return [];
+  }
+
+  const supabase = createSupabaseServerClient();
+  let query = supabase.from("practice_sessions").select("*");
+
+  if (!isAdmin) {
+    query = query.eq("user_id", userId);
+  }
+
+  if (filters?.part) {
+    query = query.eq("part", filters.part);
+  }
+
+  if (typeof filters?.riskFlag === "boolean") {
+    query = query.eq("risk_flag", filters.riskFlag);
+  }
+
+  if (filters?.appealStatus) {
+    query = query.eq("appeal_status", filters.appealStatus);
+  }
+
+  if (filters?.reviewStatus) {
+    query = query.eq("review_status", filters.reviewStatus);
+  }
+
+  if (filters?.timeRange) {
+    const createdAfter = resolveCreatedAfter(filters.timeRange);
+    if (createdAfter) {
+      query = query.gte("created_at", createdAfter);
+    }
+  }
+
+  if (filters?.queue === "pending") {
+    query = query.or("risk_flag.eq.true,appeal_status.eq.submitted,review_status.eq.flagged");
+  }
+
+  const keyword = filters?.keyword?.trim();
+  if (keyword) {
+    const escapedKeyword = keyword.replace(/[%,]/g, " ").trim();
+    if (escapedKeyword) {
+      query = query.or(
+        `topic_title.ilike.%${escapedKeyword}%,question_text.ilike.%${escapedKeyword}%,transcript.ilike.%${escapedKeyword}%,risk_reason.ilike.%${escapedKeyword}%,appeal_note.ilike.%${escapedKeyword}%,review_note.ilike.%${escapedKeyword}%,review_result.ilike.%${escapedKeyword}%`,
+      );
+    }
+  }
+
+  const { data, error } = await query.order("created_at", { ascending: false });
+
+  if (error) {
+    console.error(error);
+    return [];
+  }
+
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  return (data as PracticeSessionRecord[]).map(mapRecordToAdminSession);
+}
+
+export async function listStudents(): Promise<AdminStudentSummary[]> {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+  const { isAdmin } = await getAccessContext();
+  if (!isAdmin) {
+    return [];
   }
 
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("practice_sessions")
-    .select("*")
+    .select("user_id, created_at, total_score, risk_flag, appeal_status")
+    .not("user_id", "is", null)
     .order("created_at", { ascending: false });
 
   if (error) {
     console.error(error);
-    return practiceSessions;
+    return [];
   }
 
   if (!data || data.length === 0) {
-    return practiceSessions;
+    return [];
   }
 
-  return (data as PracticeSessionRecord[]).map(mapRecordToSession);
+  const studentMap = new Map<string, Omit<AdminStudentSummary, "email">>();
+
+  for (const record of data) {
+    const userId = record.user_id;
+    if (!userId) {
+      continue;
+    }
+
+    const score = Number(record.total_score ?? 0);
+    const existing = studentMap.get(userId);
+
+    if (!existing) {
+      studentMap.set(userId, {
+        userId,
+        sessionCount: 1,
+        lastActive: record.created_at,
+        avgScore: score,
+        bestScore: score,
+        riskCount: record.risk_flag ? 1 : 0,
+        pendingAppeals: record.appeal_status === "submitted" ? 1 : 0,
+      });
+      continue;
+    }
+
+    const nextSessionCount = existing.sessionCount + 1;
+    studentMap.set(userId, {
+      ...existing,
+      sessionCount: nextSessionCount,
+      lastActive: existing.lastActive > record.created_at ? existing.lastActive : record.created_at,
+      avgScore: (existing.avgScore * existing.sessionCount + score) / nextSessionCount,
+      bestScore: Math.max(existing.bestScore, score),
+      riskCount: existing.riskCount + (record.risk_flag ? 1 : 0),
+      pendingAppeals: existing.pendingAppeals + (record.appeal_status === "submitted" ? 1 : 0),
+    });
+  }
+
+  const userIds = Array.from(studentMap.keys());
+  const { data: users } = await supabase.auth.admin.listUsers();
+  const emailMap = new Map<string, string>();
+
+  if (users?.users) {
+    for (const user of users.users) {
+      if (userIds.includes(user.id)) {
+        emailMap.set(user.id, user.email || "");
+      }
+    }
+  }
+
+  return Array.from(studentMap.values())
+    .map((student) => ({
+      ...student,
+      email: emailMap.get(student.userId) || null,
+    }))
+    .sort((a, b) => b.lastActive.localeCompare(a.lastActive));
 }
 
-export async function getPracticeSessionById(sessionId: string): Promise<PracticeSession | null> {
+export async function listPracticeSessionsByUserId(targetUserId: string): Promise<AdminPracticeSession[]> {
   if (!isSupabaseConfigured()) {
-    return getSessionById(sessionId) ?? null;
+    return [];
+  }
+
+  const { isAdmin } = await getAccessContext();
+  if (!isAdmin) {
+    return [];
   }
 
   const supabase = createSupabaseServerClient();
   const { data, error } = await supabase
     .from("practice_sessions")
     .select("*")
-    .eq("id", sessionId)
-    .maybeSingle();
+    .eq("user_id", targetUserId)
+    .order("created_at", { ascending: false });
 
   if (error) {
     console.error(error);
-    return getSessionById(sessionId) ?? null;
+    return [];
+  }
+
+  if (!data || data.length === 0) {
+    return [];
+  }
+
+  return (data as PracticeSessionRecord[]).map(mapRecordToAdminSession);
+}
+
+export async function getPracticeSessionById(sessionId: string): Promise<AdminPracticeSession | null> {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  const { userId, isAdmin } = await getAccessContext();
+  if (!userId) {
+    return null;
+  }
+
+  const supabase = createSupabaseServerClient();
+  let query = supabase.from("practice_sessions").select("*").eq("id", sessionId);
+
+  if (!isAdmin) {
+    query = query.eq("user_id", userId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
+    console.error(error);
+    return null;
   }
 
   if (!data) {
-    return getSessionById(sessionId) ?? null;
+    return null;
   }
 
-  return mapRecordToSession(data as PracticeSessionRecord);
+  return mapRecordToAdminSession(data as PracticeSessionRecord);
 }

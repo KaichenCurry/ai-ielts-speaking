@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SectionCard } from "@/components/page-shell";
-import { buildResultStorageKey } from "@/lib/result-storage";
+import { saveResultToBrowser } from "@/lib/result-storage";
 import type {
   LiveScoringResult,
   PracticeQuestionConfig,
+  ScorePracticeRequest,
   TranscriptionResponse,
 } from "@/lib/types";
 
@@ -34,6 +35,7 @@ export function PracticeWorkspace({ config }: { config: PracticeQuestionConfig }
   const [recorderState, setRecorderState] = useState<RecorderState>("idle");
   const [transcriptionState, setTranscriptionState] = useState<TranscriptionState>("idle");
   const [durationSeconds, setDurationSeconds] = useState(0);
+  const [finalDurationSeconds, setFinalDurationSeconds] = useState(0);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [recordedFile, setRecordedFile] = useState<File | null>(null);
   const [transcript, setTranscript] = useState("");
@@ -135,7 +137,7 @@ export function PracticeWorkspace({ config }: { config: PracticeQuestionConfig }
       recorder.onstop = () => {
         const audioBlob = new Blob(chunksRef.current, { type: "audio/webm" });
         const nextAudioUrl = URL.createObjectURL(audioBlob);
-        const nextFile = new File([audioBlob], `${config.part}-recording.webm`, {
+        const nextFile = new File([audioBlob], `${config.questionId}-recording.webm`, {
           type: audioBlob.type || "audio/webm",
         });
 
@@ -172,6 +174,8 @@ export function PracticeWorkspace({ config }: { config: PracticeQuestionConfig }
       window.clearInterval(timerRef.current);
       timerRef.current = null;
     }
+
+    setFinalDurationSeconds(durationSeconds);
   }
 
   function resetRecording() {
@@ -192,6 +196,7 @@ export function PracticeWorkspace({ config }: { config: PracticeQuestionConfig }
     setRecordedFile(null);
     setTranscript("");
     setDurationSeconds(0);
+    setFinalDurationSeconds(0);
     setPermissionError("");
     setTranscriptionError("");
     setScoringError("");
@@ -217,16 +222,24 @@ export function PracticeWorkspace({ config }: { config: PracticeQuestionConfig }
       setScoringError("");
       setRecorderState("scoring");
 
+      const requestBody: ScorePracticeRequest = {
+        part: config.part,
+        topicSlug: config.topicSlug,
+        topicTitle: config.topicTitle,
+        questionId: config.questionId,
+        questionText: config.questionText,
+        questionIndex: config.questionIndex,
+        questionLabel: config.questionLabel,
+        transcript,
+        durationSeconds,
+      };
+
       const response = await fetch("/api/score", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          part: config.part,
-          transcript,
-          durationSeconds,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const payload = (await response.json()) as LiveScoringResult | { error?: string };
@@ -235,7 +248,7 @@ export function PracticeWorkspace({ config }: { config: PracticeQuestionConfig }
         throw new Error("error" in payload ? payload.error || "Scoring failed." : "Scoring failed.");
       }
 
-      window.sessionStorage.setItem(buildResultStorageKey(payload.sessionId), JSON.stringify(payload));
+      await saveResultToBrowser(payload);
       router.push(`/result/${payload.sessionId}`);
     } catch (error) {
       console.error(error);
@@ -245,94 +258,127 @@ export function PracticeWorkspace({ config }: { config: PracticeQuestionConfig }
   }
 
   return (
-    <div className="card-grid practice-grid">
+    <div className="practice-layout">
       <SectionCard title="当前题目">
-        <p>{config.question}</p>
-        <p className="inline-note">{config.helper}</p>
+        <p>{config.questionText}</p>
+        <p className="inline-note">{config.questionLabel} · {config.helper}</p>
       </SectionCard>
 
-      <SectionCard title="录音控制台">
-        <div className="recording-status-panel">
-          <div>
-            <p className="label">当前状态</p>
-            <p className="value">{statusLabel}</p>
+      <div className="practice-main">
+        <SectionCard title="录音控制台">
+          <div className="recording-status-panel">
+            <div>
+              <p className="label">当前状态</p>
+              <p className="value">{statusLabel}</p>
+            </div>
+            <div>
+              <p className="label">录音时长</p>
+              <p className="timer-value">
+                {recorderState === "recording"
+                  ? formatSeconds(durationSeconds)
+                  : finalDurationSeconds > 0
+                    ? formatSeconds(finalDurationSeconds)
+                    : formatSeconds(durationSeconds)}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="label">录音时长</p>
-            <p className="timer-value">{formatSeconds(durationSeconds)}</p>
+
+          <div className="control-row">
+            <button className="action-button primary" onClick={startRecording} disabled={!canStart} type="button">
+              开始录音
+            </button>
+            <button className="action-button secondary" onClick={stopRecording} disabled={!canStop} type="button">
+              停止录音
+            </button>
+            <button className="action-button ghost" onClick={resetRecording} disabled={recorderState === "scoring"} type="button">
+              重新开始
+            </button>
           </div>
-        </div>
 
-        <div className="control-row">
-          <button className="action-button primary" onClick={startRecording} disabled={!canStart} type="button">
-            开始录音
-          </button>
-          <button className="action-button secondary" onClick={stopRecording} disabled={!canStop} type="button">
-            停止录音
-          </button>
-          <button className="action-button ghost" onClick={resetRecording} disabled={recorderState === "scoring"} type="button">
-            重新开始
-          </button>
-        </div>
+          {audioUrl ? (
+            <div className="audio-preview">
+              <p className="label">录音回放</p>
+              <audio controls src={audioUrl} className="audio-player">
+                Your browser does not support audio playback.
+              </audio>
+            </div>
+          ) : (
+            <div className="placeholder-box compact">
+              <p>完成录音后，这里会提供回放能力。</p>
+            </div>
+          )}
 
-        {audioUrl ? (
-          <div className="audio-preview">
-            <p className="label">录音回放</p>
-            <audio controls src={audioUrl} className="audio-player">
-              Your browser does not support audio playback.
-            </audio>
+          {permissionError ? <p className="message-error">{permissionError}</p> : null}
+        </SectionCard>
+
+        <SectionCard title="语音转写">
+          {transcriptionState === "transcribing" ? (
+            <div className="recording-status-panel transcription-panel">
+              <div>
+                <p className="label">转写状态</p>
+                <p className="value">正在识别语音，请稍候…</p>
+              </div>
+            </div>
+          ) : transcriptionState === "ready" ? (
+            <div className="recording-status-panel transcription-panel">
+              <div>
+                <p className="label">转写状态</p>
+                <p className="value">✓ 识别完成</p>
+              </div>
+              <div>
+                <p className="label">识别来源</p>
+                <p className="value">{transcriptionProvider || "OpenAI"}</p>
+              </div>
+            </div>
+          ) : transcriptionState === "error" ? (
+            <div className="recording-status-panel transcription-panel">
+              <div>
+                <p className="label">转写状态</p>
+                <p className="value">识别失败，可重试或手动输入</p>
+              </div>
+            </div>
+          ) : null}
+
+          <p className="inline-note">录音停止后会自动识别语音。如识别有偏差，可直接在下方文本框修正后再提交。</p>
+          <textarea
+            className="transcript-input"
+            value={transcript}
+            onChange={(event) => setTranscript(event.target.value)}
+            placeholder="录音完成后，这里会出现 OpenAI ASR 的转写结果。"
+            rows={8}
+            disabled={recorderState === "scoring" || transcriptionState === "transcribing"}
+          />
+
+          <div className="control-row top-gap">
+            <button
+              className="action-button ghost"
+              onClick={retryTranscription}
+              disabled={!recordedFile || transcriptionState === "transcribing" || recorderState === "scoring"}
+              type="button"
+            >
+              重新转写
+            </button>
           </div>
-        ) : (
-          <div className="placeholder-box compact">
-            <p>完成录音后，这里会提供回放能力。</p>
-          </div>
-        )}
 
-        {permissionError ? <p className="message-error">{permissionError}</p> : null}
-      </SectionCard>
+          {transcriptionError ? <p className="message-error">{transcriptionError}</p> : null}
+        </SectionCard>
+      </div>
 
-      <SectionCard title="真实 ASR 转写预览">
-        <div className="recording-status-panel transcription-panel">
-          <div>
-            <p className="label">转写状态</p>
-            <p className="value">{transcriptionLabel}</p>
-          </div>
-          <div>
-            <p className="label">转写来源</p>
-            <p className="value">{transcriptionProvider || "OpenAI（待返回）"}</p>
-          </div>
-        </div>
-
-        <p className="inline-note">录音停止后会自动上传音频到服务端，并调用 OpenAI ASR 返回文本。你也可以手动修正文本后再提交评分。</p>
-        <textarea
-          className="transcript-input"
-          value={transcript}
-          onChange={(event) => setTranscript(event.target.value)}
-          placeholder="录音完成后，这里会出现 OpenAI ASR 的转写结果。"
-          rows={8}
-          disabled={recorderState === "scoring" || transcriptionState === "transcribing"}
-        />
-
-        <div className="control-row top-gap">
-          <button
-            className="action-button ghost"
-            onClick={retryTranscription}
-            disabled={!recordedFile || transcriptionState === "transcribing" || recorderState === "scoring"}
-            type="button"
-          >
-            重新转写
-          </button>
-        </div>
-
-        {transcriptionState === "transcribing" ? <p className="message-info">正在上传录音并请求 OpenAI ASR，请稍候…</p> : null}
-        {transcriptionError ? <p className="message-error">{transcriptionError}</p> : null}
-      </SectionCard>
-
-      <SectionCard title="提交并评分">
+      <SectionCard title="提交评分">
         <div className="submission-panel">
-          <p>当前会在真实 ASR 完成后，调用真实 AI 评分接口，将结果写入数据库，并跳转到结果页展示结构化评分结果。</p>
-          <button className="action-button primary" onClick={submitPractice} disabled={!canSubmit} type="button">
-            提交并查看结果
+          {recorderState === "scoring" ? (
+            <p>AI 正在分析你的回答，通常需要 10–20 秒，请稍候…</p>
+          ) : (
+            <p>
+              {transcriptionState === "ready"
+                ? "语音识别完成，确认转写内容无误后提交。"
+                : transcriptionState === "transcribing"
+                  ? "正在识别语音，识别完成后即可提交。"
+                  : "完成录音后，AI 会自动识别语音并生成评分。"}
+            </p>
+          )}
+          <button className="action-button primary practice-submit-button" onClick={submitPractice} disabled={!canSubmit} type="button">
+            {recorderState === "scoring" ? "评分中…" : "提交并查看结果"}
           </button>
         </div>
         {scoringError ? <p className="message-error">{scoringError}</p> : null}

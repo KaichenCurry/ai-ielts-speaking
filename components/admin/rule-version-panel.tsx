@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { formatDate } from "@/lib/result-display";
 import type { PromptVersion, PromptVersionStatus } from "@/lib/types";
 
 export function RuleVersionPanel({ versions }: { versions: PromptVersion[] }) {
@@ -40,7 +41,7 @@ export function RuleVersionPanel({ versions }: { versions: PromptVersion[] }) {
       setName("");
       setDescription("");
       setStatus("archived");
-      router.refresh();
+      router.replace("/admin/rules?success=规则版本已新增。");
     } catch (submitError) {
       console.error(submitError);
       setError(submitError instanceof Error ? submitError.message : "规则版本创建失败。");
@@ -71,10 +72,10 @@ export function RuleVersionPanel({ versions }: { versions: PromptVersion[] }) {
         throw new Error(payload.error || "Set current version failed.");
       }
 
-      router.refresh();
+      router.replace("/admin/rules?success=已切换当前生效版本。");
     } catch (submitError) {
       console.error(submitError);
-      setError(submitError instanceof Error ? submitError.message : "设置 current 版本失败。");
+      setError(submitError instanceof Error ? submitError.message : "设置当前版本失败。");
     } finally {
       setSubmitting(false);
     }
@@ -101,8 +102,8 @@ export function RuleVersionPanel({ versions }: { versions: PromptVersion[] }) {
         <label className="form-field">
           <span>状态</span>
           <select value={status} onChange={(event) => setStatus(event.target.value as PromptVersionStatus)}>
-            <option value="archived">archived</option>
-            <option value="current">current</option>
+            <option value="archived">归档</option>
+            <option value="current">当前生效</option>
           </select>
         </label>
 
@@ -121,14 +122,16 @@ export function RuleVersionPanel({ versions }: { versions: PromptVersion[] }) {
           <div className="timeline-item" key={version.id}>
             <strong>{version.name}</strong>
             <p>{version.description}</p>
-            <p className="inline-note">状态：{version.status}</p>
+            <p className="inline-note">
+              {version.status === "current" ? "✓ 当前生效" : "已归档"} · 更新于 {formatDate(version.updatedAt)}
+            </p>
             <button
               className="action-button ghost"
               disabled={submitting || version.status === "current"}
               onClick={() => setCurrent(version.id)}
               type="button"
             >
-              {version.status === "current" ? "当前生效版本" : "设为 current"}
+              {version.status === "current" ? "当前生效版本" : "设为当前版本"}
             </button>
           </div>
         ))}

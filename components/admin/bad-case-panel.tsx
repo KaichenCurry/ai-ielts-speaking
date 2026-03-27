@@ -2,7 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Badge } from "@/components/ui";
+import { formatDate } from "@/lib/result-display";
 import type { BadCaseItem, PromptVersion, PracticeSession } from "@/lib/types";
+
+function getBadCaseStatusLabel(status: BadCaseItem["status"]) {
+  return status === "resolved" ? "已关闭" : "待处理";
+}
+
+function getBadCaseTone(status: BadCaseItem["status"]): "warn" | "ok" {
+  return status === "resolved" ? "ok" : "warn";
+}
 
 export function BadCasePanel({
   session,
@@ -89,6 +99,29 @@ export function BadCasePanel({
 
   return (
     <div className="review-form">
+      <div className="admin-session-summary-row">
+        <div className="kpi-card">
+          <p className="kpi-card-value">{badCases.length}</p>
+          <p className="kpi-card-label">累计样本</p>
+        </div>
+        <div className="kpi-card">
+          <p className="kpi-card-value">{badCases.filter((item) => item.status === "open").length}</p>
+          <p className="kpi-card-label">待处理</p>
+        </div>
+        <div className="kpi-card">
+          <p className="kpi-card-value">{badCases.filter((item) => item.status === "resolved").length}</p>
+          <p className="kpi-card-label">已关闭</p>
+        </div>
+        <div className="kpi-card">
+          <p className="kpi-card-value">{promptVersions.length}</p>
+          <p className="kpi-card-label">可关联版本</p>
+        </div>
+      </div>
+
+      <p className="inline-note">
+        把这条会话里值得回看和复现的问题沉淀下来，后续切换规则版本或复盘误判时会更方便。
+      </p>
+
       <form className="review-form" onSubmit={handleSubmit}>
         <label className="form-field">
           <span>问题原因</span>
@@ -97,7 +130,7 @@ export function BadCasePanel({
             value={reason}
             onChange={(event) => setReason(event.target.value)}
             rows={3}
-            placeholder="记录为什么这条会话值得沉淀为 bad case。"
+            placeholder="例如：分数偏高、发音误判、完整度判断不稳定。"
           />
         </label>
 
@@ -114,7 +147,7 @@ export function BadCasePanel({
         </label>
 
         <div className="submission-panel">
-          <p>把当前问题样本沉淀下来，方便后续规则优化和版本回看。</p>
+          <p>保存后会新增一条 bad case 记录，方便后续持续跟踪和关闭。</p>
           <button className="action-button primary" disabled={submitting} type="submit">
             {submitting ? "保存中..." : "标记为 bad case"}
           </button>
@@ -129,17 +162,23 @@ export function BadCasePanel({
         ) : (
           badCases.map((item) => (
             <div className="timeline-item" key={item.id}>
-              <strong>{item.status}</strong>
+              <div className="tag-row" style={{ marginBottom: 10 }}>
+                <Badge tone={getBadCaseTone(item.status)}>{getBadCaseStatusLabel(item.status)}</Badge>
+                <Badge>{item.promptVersionId ? "已关联版本" : "未关联版本"}</Badge>
+              </div>
               <p>{item.reason}</p>
-              <p className="inline-note">关联版本：{item.promptVersionId || "未关联"}</p>
-              <p className="inline-note">创建时间：{item.createdAt}</p>
+              <p className="inline-note" style={{ marginTop: 8 }}>
+                关联版本：{item.promptVersionId || "未关联"}
+              </p>
+              <p className="inline-note">创建时间：{formatDate(item.createdAt)}</p>
               <button
                 className="action-button ghost"
                 disabled={submitting || item.status === "resolved"}
                 onClick={() => resolveBadCase(item.id)}
+                style={{ marginTop: 12 }}
                 type="button"
               >
-                {item.status === "resolved" ? "已关闭" : "标记为 resolved"}
+                {item.status === "resolved" ? "已关闭" : "标记为已关闭"}
               </button>
             </div>
           ))

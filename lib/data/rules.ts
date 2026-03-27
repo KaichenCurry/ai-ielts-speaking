@@ -7,7 +7,6 @@ import type {
   BadCaseStatus,
 } from "@/lib/types";
 import { createSupabaseServerClient, isSupabaseConfigured } from "@/lib/supabase/server";
-import { promptVersions as mockPromptVersions } from "@/lib/mock-data";
 
 function mapPromptVersionRecord(record: PromptVersionRecord): PromptVersion {
   return {
@@ -32,7 +31,7 @@ function mapBadCaseRecord(record: BadCaseRecord): BadCaseItem {
 
 export async function listPromptVersions(): Promise<PromptVersion[]> {
   if (!isSupabaseConfigured()) {
-    return mockPromptVersions;
+    return [];
   }
 
   const supabase = createSupabaseServerClient();
@@ -43,11 +42,11 @@ export async function listPromptVersions(): Promise<PromptVersion[]> {
 
   if (error) {
     console.error(error);
-    return mockPromptVersions;
+    return [];
   }
 
   if (!data || data.length === 0) {
-    return mockPromptVersions;
+    return [];
   }
 
   return (data as PromptVersionRecord[]).map(mapPromptVersionRecord);

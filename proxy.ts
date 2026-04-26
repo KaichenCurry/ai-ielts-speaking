@@ -3,6 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isAdminEmail } from "./lib/supabase/auth-server";
 
 const AUTH_PATHS = new Set(["/login", "/register"]);
+// Pages that anyone can view without being signed in. The landing page (/)
+// is public so students see the marketing/CTA surface before deciding to
+// register or continue as guest; auth pages are public for obvious reasons.
+const PUBLIC_PATHS = new Set(["/", "/login", "/register"]);
 const ADMIN_API_PREFIXES = ["/api/review", "/api/bad-case", "/api/rules"];
 
 function isStaticAsset(pathname: string) {
@@ -59,7 +63,8 @@ export async function proxy(request: NextRequest) {
   const isAdmin = isAdminEmail(user?.email);
 
   if (!user) {
-    if (isAuthPath) {
+    // Anyone can hit the public marketing/auth surface signed out.
+    if (PUBLIC_PATHS.has(pathname) || pathname.startsWith("/auth/")) {
       return response;
     }
 
@@ -68,12 +73,13 @@ export async function proxy(request: NextRequest) {
     }
 
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("next", pathname === "/" ? "/practice" : `${pathname}${search}`);
+    loginUrl.searchParams.set("next", `${pathname}${search}`);
     return NextResponse.redirect(loginUrl);
   }
 
+  // Already signed in: the auth pages should bounce to the product (mock hall).
   if (isAuthPath) {
-    return NextResponse.redirect(new URL("/practice", request.url));
+    return NextResponse.redirect(new URL("/mock", request.url));
   }
 
   if ((isAdminPath || isAdminApi) && !isAdmin) {
@@ -81,7 +87,7 @@ export async function proxy(request: NextRequest) {
       return jsonError("Admin access required.", 403);
     }
 
-    return NextResponse.redirect(new URL("/practice", request.url));
+    return NextResponse.redirect(new URL("/mock", request.url));
   }
 
   return response;

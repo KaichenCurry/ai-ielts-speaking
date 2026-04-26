@@ -63,43 +63,30 @@ alter table public.practice_sessions
   add column if not exists sample_answer_pronunciation jsonb null,
   add column if not exists improved_answer_pronunciation jsonb null;
 
-do $$
-begin
-  if exists (
-    select 1
-    from information_schema.columns
-    where table_schema = 'public'
-      and table_name = 'practice_sessions'
-      and column_name = 'title'
-  ) then
-    execute $migration$
-      update public.practice_sessions
-      set
-        topic_title = coalesce(topic_title, title),
-        question_text = coalesce(question_text, question),
-        topic_slug = coalesce(topic_slug, id),
-        question_id = coalesce(question_id, id),
-        question_label = coalesce(question_label, upper(part) || ' Prompt')
-      where
-        topic_title is null
-        or question_text is null
-        or topic_slug is null
-        or question_id is null
-        or question_label is null
-    $migration$;
-  else
-    update public.practice_sessions
-    set
-      topic_slug = coalesce(topic_slug, id),
-      question_id = coalesce(question_id, id),
-      question_label = coalesce(question_label, upper(part) || ' Prompt')
-    where
-      topic_slug is null
-      or question_id is null
-      or question_label is null;
-  end if;
-end
-$$;
+-- Backfill defaults for any rows where the new columns are still null.
+-- The legacy `title` / `question` columns (renamed in an earlier migration
+-- to topic_title / question_text) are no longer assumed to exist; if you
+-- still have them, copy values manually before running this script.
+update public.practice_sessions
+set
+  topic_slug = coalesce(topic_slug, id),
+  question_id = coalesce(question_id, id),
+  question_label = coalesce(question_label, upper(part) || ' Prompt')
+where
+  topic_slug is null
+  or question_id is null
+  or question_label is null;
+
+-- topic_title / question_text need values before being marked NOT NULL.
+-- For any row still missing them, fall back to the question_id and a
+-- generic title so the alter-column-not-null below succeeds.
+update public.practice_sessions
+set
+  topic_title = coalesce(topic_title, 'Legacy session'),
+  question_text = coalesce(question_text, question_id)
+where
+  topic_title is null
+  or question_text is null;
 
 alter table public.practice_sessions
   alter column topic_slug set not null,

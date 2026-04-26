@@ -3020,7 +3020,7 @@ body {
 }
 .lp-actions-center { justify-content: center; }
 
-/* (Stats strip removed per product direction — was lp-strip*/lp-stat*) */
+/* Stats strip removed per product direction (was .lp-strip + .lp-stat). */
 
 /* SECTION wrapper — generous vertical rhythm */
 .lp-section {

@@ -1,13 +1,9 @@
 import Link from "next/link";
 import { GuestSignInButton } from "@/components/auth/guest-sign-in-button";
-import { getCurrentSeason, listMockPapersWithPreview } from "@/lib/data/papers";
+import { getCurrentSeason } from "@/lib/data/papers";
 
-export default async function HomePage() {
-  const [papers, season] = await Promise.all([
-    listMockPapersWithPreview(),
-    Promise.resolve(getCurrentSeason()),
-  ]);
-  const paperCount = papers.length;
+export default function HomePage() {
+  const season = getCurrentSeason();
   const yearShort = season.startDate.slice(0, 4);
   const monthsCompact = `${season.startDate.slice(5, 7)}–${season.endDate.slice(5, 7)}`;
 
@@ -68,66 +64,6 @@ export default async function HomePage() {
             </Link>
             <GuestSignInButton variant="ghost" label="访客模式 · 无需注册" />
           </div>
-        </div>
-      </section>
-
-      {/* ─── STATS STRIP — premium metric row with icons + EN supertitle ─── */}
-      <section className="lp-strip">
-        <div className="lp-container">
-          <header className="lp-strip-head">
-            <span className="lp-strip-eyebrow">
-              <span className="lp-strip-eyebrow-line" />
-              by the numbers
-              <span className="lp-strip-eyebrow-line" />
-            </span>
-            <h2 className="lp-strip-title">本期数据 <em>at a glance</em></h2>
-          </header>
-          <dl className="lp-strip-grid">
-            <div className="lp-stat">
-              <span className="lp-stat-icon" aria-hidden>
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="4" width="18" height="17" rx="2" />
-                  <path d="M3 10h18M8 2v4M16 2v4" />
-                </svg>
-              </span>
-              <dt>{paperCount}</dt>
-              <dd className="lp-stat-label">当季试卷</dd>
-              <dd className="lp-stat-meta">PAPERS · {season.label.toUpperCase()}</dd>
-            </div>
-            <div className="lp-stat">
-              <span className="lp-stat-icon" aria-hidden>
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round">
-                  <polygon points="12,3 21,9 18,20 6,20 3,9" />
-                  <path d="M12 3v17M3 9l18 0M5.5 14.5l13 0" strokeWidth="1" opacity="0.5" />
-                </svg>
-              </span>
-              <dt>5</dt>
-              <dd className="lp-stat-label">评分维度</dd>
-              <dd className="lp-stat-meta">FC · LR · GR · PR · CP</dd>
-            </div>
-            <div className="lp-stat">
-              <span className="lp-stat-icon" aria-hidden>
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="9" />
-                  <path d="M12 7v5l3 2" />
-                </svg>
-              </span>
-              <dt>11–14<span>min</span></dt>
-              <dd className="lp-stat-label">单场用时</dd>
-              <dd className="lp-stat-meta">PART 1 · 2 · 3</dd>
-            </div>
-            <div className="lp-stat">
-              <span className="lp-stat-icon" aria-hidden>
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 17l5-5 4 4 8-9" />
-                  <path d="M14 7h6v6" />
-                </svg>
-              </span>
-              <dt>0.5</dt>
-              <dd className="lp-stat-label">分数步进</dd>
-              <dd className="lp-stat-meta">BAND 0–9 · IELTS RUBRIC</dd>
-            </div>
-          </dl>
         </div>
       </section>
 

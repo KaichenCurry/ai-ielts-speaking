@@ -3020,41 +3020,122 @@ body {
 }
 .lp-actions-center { justify-content: center; }
 
-/* STATS STRIP — artistic Fraunces italic numerals, hairline rule above & below */
+/* STATS STRIP — premium metric row
+   Header label + Fraunces italic display number + Chinese label + small
+   English supertitle + accent-soft icon chip per cell. Hover: card lifts
+   with accent ring + icon flips to filled state.
+*/
 .lp-strip {
-  padding: 16px 0 80px;
+  padding: 24px 0 96px;
 }
+.lp-strip-head {
+  text-align: center;
+  margin-bottom: 36px;
+  display: grid;
+  gap: 14px;
+  justify-items: center;
+}
+.lp-strip-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.lp-strip-eyebrow-line {
+  width: 36px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+}
+.lp-strip-title {
+  margin: 0;
+  font-family: var(--font-serif-cn);
+  font-size: clamp(22px, 2.6vw, 30px);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+}
+.lp-strip-title em {
+  font-family: var(--font-serif-en);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--accent);
+  font-variation-settings: "SOFT" 100, "WONK" 1, "opsz" 144;
+}
+
 .lp-strip-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0;
+  gap: 16px;
   margin: 0;
-  padding: 40px 0;
-  border-block: 1px solid var(--border);
-  position: relative;
+  padding: 0;
 }
-.lp-strip-grid > div {
-  padding: 0 32px;
+
+.lp-stat {
   display: grid;
-  gap: 10px;
-  border-right: 1px solid var(--border);
+  gap: 14px;
+  padding: 28px 24px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
   position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.25s, border-color 0.18s;
+  isolation: isolate;
 }
-.lp-strip-grid > div:last-child { border-right: none; }
-.lp-strip-grid > div:first-child { padding-left: 0; }
-.lp-strip-grid dt {
+.lp-stat::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 140px;
+  height: 140px;
+  background: radial-gradient(circle at top right, var(--accent-soft) 0%, transparent 65%);
+  opacity: 0;
+  transition: opacity 0.25s;
+  pointer-events: none;
+  z-index: -1;
+}
+.lp-stat:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-md);
+}
+.lp-stat:hover::before { opacity: 1; }
+
+.lp-stat-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+.lp-stat:hover .lp-stat-icon {
+  background: var(--accent);
+  color: white;
+  transform: rotate(-4deg);
+}
+
+.lp-stat dt {
   margin: 0;
   font-family: var(--font-serif-en);
   font-style: italic;
   font-weight: 400;
-  font-size: clamp(48px, 5.4vw, 64px);
+  font-size: clamp(44px, 4.6vw, 56px);
   letter-spacing: -0.04em;
   color: var(--ink);
   line-height: 0.92;
   font-feature-settings: "ss01", "tnum";
   font-variation-settings: "SOFT" 50, "WONK" 1, "opsz" 144;
 }
-.lp-strip-grid dt span {
+.lp-stat dt span {
   font-family: var(--font-mono);
   font-style: normal;
   font-size: 14px;
@@ -3063,26 +3144,37 @@ body {
   margin-left: 6px;
   letter-spacing: 0;
 }
-.lp-strip-grid dd {
+
+.lp-stat-label {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.lp-stat-meta {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 10px;
   color: var(--muted);
   font-weight: 500;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-@media (max-width: 720px) {
-  .lp-strip { padding: 0 0 56px; }
+
+@media (max-width: 880px) {
   .lp-strip-grid {
     grid-template-columns: 1fr 1fr;
-    gap: 24px 0;
-    padding: 28px 0;
+    gap: 12px;
   }
-  .lp-strip-grid > div {
-    padding: 0 16px;
-    border-right: none;
-  }
-  .lp-strip-grid > div:nth-child(odd) { border-right: 1px solid var(--border); }
-  .lp-strip-grid dt { font-size: 40px; }
+  .lp-stat { padding: 22px 18px 18px; }
+  .lp-stat dt { font-size: 38px; }
+}
+@media (max-width: 720px) {
+  .lp-strip { padding: 16px 0 64px; }
+  .lp-strip-head { margin-bottom: 24px; }
 }
 
 /* SECTION wrapper — generous vertical rhythm */

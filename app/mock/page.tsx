@@ -2,57 +2,20 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/supabase/auth-server";
 import { listMockAttemptsForUser } from "@/lib/data/attempts";
-import { getCurrentSeason, listMockPapersWithPreview, type MockPaperPreview } from "@/lib/data/papers";
-import type { MockAttempt } from "@/lib/types";
+import { getCurrentSeason } from "@/lib/data/papers";
 
-function difficultyClass(d: string) {
-  if (d === "easy") return "paper-tag-easy";
-  if (d === "hard") return "paper-tag-hard";
-  return "paper-tag-medium";
-}
-function difficultyLabel(d: string) {
-  if (d === "easy") return "基础";
-  if (d === "hard") return "进阶";
-  return "标准";
-}
-
-type DecoratedPaper = MockPaperPreview & {
-  inProgressAttempt: MockAttempt | null;
-  completedCount: number;
-  bestScore: number | null;
-};
-
-function decorate(papers: MockPaperPreview[], attempts: MockAttempt[]): DecoratedPaper[] {
-  const byPaper = new Map<string, MockAttempt[]>();
-  for (const a of attempts) {
-    const list = byPaper.get(a.paperId) ?? [];
-    list.push(a);
-    byPaper.set(a.paperId, list);
-  }
-  return papers.map((paper) => {
-    const list = byPaper.get(paper.id) ?? [];
-    const inProgress = list.find((a) => a.status === "in_progress") ?? null;
-    const scored = list.filter((a) => a.status === "scored");
-    const bestScore = scored.reduce<number | null>((best, a) => {
-      if (a.totalScore == null) return best;
-      if (best == null || a.totalScore > best) return a.totalScore;
-      return best;
-    }, null);
-    return {
-      ...paper,
-      inProgressAttempt: inProgress,
-      completedCount: scored.length,
-      bestScore,
-    };
-  });
-}
-
-function classifyError(raw: string): { kind: "schema" | "auth" | "generic"; hint: string } {
+function classifyError(raw: string): { kind: "schema" | "auth" | "fk" | "generic"; hint: string } {
   const lower = raw.toLowerCase();
   if (lower.includes("does not exist") || lower.includes("relation") || lower.includes("undefined table")) {
     return {
       kind: "schema",
       hint: "Supabase 数据库 schema 不完整 —— 请在 Supabase Dashboard → SQL Editor 把最新的 supabase/schema.sql 整份重跑一次（含 mock_papers、mock_attempts 两张新表）",
+    };
+  }
+  if (lower.includes("foreign key") || lower.includes("violates foreign key") || lower.includes("_fkey")) {
+    return {
+      kind: "fk",
+      hint: "试卷数据未同步到数据库（外键约束失败）—— 已在最新版自动修复，请刷新此页面重试 · 仍报错请联系管理员",
     };
   }
   if (lower.includes("anonymous")) {
@@ -78,23 +41,17 @@ export default async function MockHallPage({
   const errorRaw = resolvedSearch?.error?.toString().trim() ?? "";
   const errorInfo = errorRaw ? classifyError(errorRaw) : null;
 
-  // Don't crash the whole page if the data layer throws — surface a setup
-  // banner instead, so the user knows what to fix in Supabase / Vercel.
-  let papers: Awaited<ReturnType<typeof listMockPapersWithPreview>> = [];
+  // Defensive load — show banner instead of crashing.
   let attempts: Awaited<ReturnType<typeof listMockAttemptsForUser>> = [];
   let dataLoadError: string | null = null;
   try {
-    [papers, attempts] = await Promise.all([
-      listMockPapersWithPreview(),
-      listMockAttemptsForUser(user.id, 100),
-    ]);
+    attempts = await listMockAttemptsForUser(user.id, 100);
   } catch (err) {
     console.error("MockHallPage data load failed:", err);
     dataLoadError = err instanceof Error ? err.message : "数据加载失败";
   }
 
   const season = getCurrentSeason();
-  const decorated = decorate(papers, attempts);
   const recentInProgress = attempts.find((a) => a.status === "in_progress");
   const totalCompleted = attempts.filter((a) => a.status === "scored").length;
   const finalErrorInfo = errorInfo ?? (dataLoadError ? classifyError(dataLoadError) : null);
@@ -107,14 +64,13 @@ export default async function MockHallPage({
           <span className="sb-eyebrow-dot" />
           {season.zhLabel} · 当季题季
         </span>
-        <h1>选一张试卷开始模考</h1>
+        <h1>挑你想练的题目，开始模考</h1>
         <p>
-          每张卷固定 1 个 Part 2/3 主题与对应 Part 1 高频问答 · 全程不可暂停 · 预计用时 11–14 分钟<br />
-          想自己挑题目？点下方「自选题目模考」
+          按真实考场节奏完成 Part 1 → Part 2 → Part 3 · 全程不可暂停 · 预计用时 11–14 分钟
         </p>
       </header>
 
-      {/* ERROR BANNER — surfaces setup or data-layer failures */}
+      {/* ERROR BANNER */}
       {finalErrorInfo ? (
         <section className={`hall-alert hall-alert-${finalErrorInfo.kind}`} role="alert">
           <div className="hall-alert-icon" aria-hidden>!</div>
@@ -122,9 +78,11 @@ export default async function MockHallPage({
             <p className="hall-alert-title">
               {finalErrorInfo.kind === "schema"
                 ? "数据库未配置完成"
-                : finalErrorInfo.kind === "auth"
-                  ? "访客模式未启用"
-                  : "操作未能完成"}
+                : finalErrorInfo.kind === "fk"
+                  ? "试卷未同步"
+                  : finalErrorInfo.kind === "auth"
+                    ? "访客模式未启用"
+                    : "操作未能完成"}
             </p>
             <p className="hall-alert-hint">{finalErrorInfo.hint}</p>
             {finalErrorInfo.kind === "generic" ? (
@@ -156,102 +114,47 @@ export default async function MockHallPage({
         </section>
       ) : null}
 
-      {/* QUICK LINKS — custom mock + check + history */}
+      {/* CENTERPIECE — self-pick mock card (the only entry to start a mock) */}
+      <Link href="/mock/custom" className="hall-pick">
+        <div className="hall-pick-icon" aria-hidden>🎯</div>
+        <div className="hall-pick-body">
+          <span className="hall-pick-eyebrow">
+            <span className="hall-pick-eyebrow-dot" />
+            START · 选题模考
+          </span>
+          <h2 className="hall-pick-title">自选题目模考</h2>
+          <p className="hall-pick-desc">
+            挑你想练的 Part 1 主题（最多 3 个）和 Part 2 / Part 3 主题，系统按你的选择临时拼一张试卷开始模考
+          </p>
+          <ul className="hall-pick-bullets">
+            <li><span aria-hidden>✓</span> Part 1 多选 1–3 个主题，每个主题 3 道题</li>
+            <li><span aria-hidden>✓</span> Part 2 / Part 3 单选 1 个主题，含 1 张 Cue Card + 4–5 道延展讨论</li>
+            <li><span aria-hidden>✓</span> 提交后立刻进入模考，全程录音、AI 评分</li>
+          </ul>
+        </div>
+        <div className="hall-pick-cta">
+          <span className="hall-pick-cta-label">开始</span>
+          <span className="hall-pick-cta-arrow" aria-hidden>→</span>
+        </div>
+      </Link>
+
+      {/* SECONDARY — device check + history */}
       <section className="hall-quick">
-        <Link href="/mock/custom" className="hall-quick-link hall-quick-link-feature">
-          <div className="hall-quick-icon">🎯</div>
-          <div className="hall-quick-text">
-            <p className="hall-quick-title">自选题目模考</p>
-            <p className="hall-quick-desc">挑你想练的 Part 1 + Part 2/3 主题，临时拼卷</p>
-          </div>
-          <span className="hall-quick-arrow">→</span>
-        </Link>
         <Link href="/mock/check" className="hall-quick-link">
           <div className="hall-quick-icon">🎙</div>
           <div className="hall-quick-text">
             <p className="hall-quick-title">考前设备检测</p>
-            <p className="hall-quick-desc">麦克风权限 + 录音电平</p>
+            <p className="hall-quick-desc">麦克风权限 + 录音电平 + 环境噪声</p>
           </div>
         </Link>
         <Link href="/history" className="hall-quick-link">
           <div className="hall-quick-icon">📊</div>
           <div className="hall-quick-text">
             <p className="hall-quick-title">我的报告</p>
-            <p className="hall-quick-desc">{totalCompleted} 份已完成</p>
+            <p className="hall-quick-desc">{totalCompleted} 份已完成 · 含五维分项</p>
           </div>
         </Link>
       </section>
-
-      {/* PAPER GRID */}
-      <header className="hall-section-head">
-        <h2>本期推荐试卷</h2>
-        <p className="hall-section-helper">
-          系统按当季题库自动组卷，每张卷主题固定
-        </p>
-      </header>
-
-      {decorated.length === 0 ? (
-        <div className="hall-empty">
-          <h3>当季还没有可用试卷</h3>
-          <p>请联系管理员补齐题库，或试试上方的自选题目模考</p>
-        </div>
-      ) : (
-        <div className="hall-grid">
-          {decorated.map((paper, index) => {
-            const num = String(index + 1).padStart(2, "0");
-            return (
-              <Link
-                key={paper.id}
-                href={`/mock/${paper.id}/intro`}
-                className="paper"
-              >
-                <div className="paper-top">
-                  <span className="paper-num">PAPER · {num}</span>
-                  <span className={`paper-tag ${difficultyClass(paper.difficulty)}`}>
-                    {difficultyLabel(paper.difficulty)}
-                  </span>
-                </div>
-                <h3 className="paper-title">{paper.title}</h3>
-
-                {/* Topic preview — what this paper actually drills */}
-                <div className="paper-topics">
-                  <div className="paper-topics-row">
-                    <span className="paper-topics-label">P1</span>
-                    <span className="paper-topics-value">
-                      {paper.part1TopicTitles.length > 0
-                        ? paper.part1TopicTitles.join(" · ")
-                        : "—"}
-                    </span>
-                  </div>
-                  <div className="paper-topics-row">
-                    <span className="paper-topics-label paper-topics-label-accent">P2/3</span>
-                    <span className="paper-topics-value">{paper.part23TopicTitle}</span>
-                  </div>
-                </div>
-
-                <div className="paper-stats">
-                  {paper.inProgressAttempt ? (
-                    <span className="paper-status paper-status-progress">未完成</span>
-                  ) : paper.completedCount > 0 ? (
-                    <span className="paper-status paper-status-done">
-                      已完成 × {paper.completedCount}
-                    </span>
-                  ) : (
-                    <span className="paper-status paper-status-new">未尝试</span>
-                  )}
-                  {paper.bestScore != null ? (
-                    <span className="paper-best">最高 {paper.bestScore.toFixed(1)}</span>
-                  ) : null}
-                </div>
-                <div className="paper-cta">
-                  <span>进入考前说明</span>
-                  <span className="paper-cta-arrow">→</span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

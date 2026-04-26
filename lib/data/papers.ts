@@ -154,6 +154,35 @@ export function isCustomPaper(paperId: string) {
   return paperId.startsWith(CUSTOM_PAPER_PREFIX);
 }
 
+/**
+ * Make sure the given paper has a row in mock_papers before any attempt
+ * tries to FK to it. Auto-generated papers (`paper-{season}-{NN}`) live
+ * only in memory by default; mock_attempts.paper_id won't satisfy its
+ * foreign key unless we upsert here first. Idempotent — repeat calls
+ * are no-ops thanks to onConflict: id.
+ */
+export async function ensureMockPaperPersisted(paper: MockPaper): Promise<void> {
+  if (!isSupabaseConfigured()) return;
+  const supabase = createSupabaseServerClient();
+  const { error } = await supabase
+    .from("mock_papers")
+    .upsert(
+      {
+        id: paper.id,
+        season: paper.season,
+        title: paper.title,
+        part1_topic_slugs: paper.part1TopicSlugs,
+        part23_topic_slug: paper.part23TopicSlug,
+        difficulty: paper.difficulty,
+        is_active: paper.isActive,
+      },
+      { onConflict: "id" },
+    );
+  if (error) {
+    throw new Error(`Failed to persist mock paper: ${error.message}`);
+  }
+}
+
 export async function listMockPapers(): Promise<MockPaper[]> {
   if (isSupabaseConfigured()) {
     try {

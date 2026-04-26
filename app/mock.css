@@ -1209,6 +1209,10 @@ body {
   background: #fef2e9;
   border-color: var(--accent-hover);
 }
+.hall-alert-fk {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
 .hall-alert-auth {
   background: #fef3c7;
   border-color: #d97706;
@@ -1316,61 +1320,165 @@ body {
   font-family: var(--font-mono);
 }
 
-/* Quick links row — featured + 2 secondary */
-.hall-quick {
+/* ──────────────────────────────────────────────────────────────
+   Centerpiece self-pick card
+   This is the SINGLE entry-point to start a mock. Was previously
+   one of three side-by-side links + a recommended-paper grid;
+   simplified per product direction to a single prominent card.
+   ────────────────────────────────────────────────────────────── */
+.hall-pick {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1fr;
-  gap: 16px;
-}
-@media (max-width: 880px) { .hall-quick { grid-template-columns: 1fr; } }
-
-.hall-quick-link-feature {
-  background: linear-gradient(135deg, var(--ink) 0%, #1f1f1f 100%);
-  color: var(--bg);
-  border-color: var(--ink);
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 32px;
+  align-items: center;
+  padding: 40px 44px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-md);
+  text-decoration: none;
+  color: inherit;
   position: relative;
   overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.25s, border-color 0.18s;
 }
-.hall-quick-link-feature::before {
+.hall-pick::before {
   content: "";
   position: absolute;
-  top: 0;
-  right: 0;
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle at top right, rgba(234, 88, 12, 0.5) 0%, transparent 60%);
+  top: -120px;
+  right: -120px;
+  width: 380px;
+  height: 380px;
+  background: radial-gradient(circle, var(--accent-soft) 0%, transparent 65%);
   pointer-events: none;
+  z-index: 0;
 }
-.hall-quick-link-feature .hall-quick-icon {
-  background: rgba(234, 88, 12, 0.18);
-  color: var(--accent);
-  position: relative;
-  z-index: 1;
-}
-.hall-quick-link-feature .hall-quick-title {
-  color: var(--bg);
-  position: relative;
-  z-index: 1;
-  font-weight: 700;
-}
-.hall-quick-link-feature .hall-quick-desc {
-  color: rgba(250, 248, 243, 0.75);
-  position: relative;
-  z-index: 1;
-}
-.hall-quick-link-feature:hover {
-  border-color: var(--accent);
+.hall-pick:hover {
   transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--accent);
 }
-.hall-quick-arrow {
-  margin-left: auto;
-  font-size: 22px;
-  color: var(--accent);
-  position: relative;
-  z-index: 1;
+.hall-pick > * { position: relative; z-index: 1; }
+
+.hall-pick-icon {
+  width: 88px;
+  height: 88px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, var(--accent) 0%, #f97316 100%);
+  display: grid;
+  place-items: center;
+  font-size: 44px;
+  box-shadow: 0 8px 24px rgba(234, 88, 12, 0.32);
+  flex-shrink: 0;
+}
+
+.hall-pick-body {
+  display: grid;
+  gap: 12px;
+}
+.hall-pick-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent-hover);
+  text-transform: uppercase;
+}
+.hall-pick-eyebrow-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.hall-pick-title {
+  margin: 0;
+  font-family: var(--font-serif-cn);
+  font-size: clamp(28px, 3.4vw, 36px);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  color: var(--ink);
+}
+.hall-pick-desc {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  max-width: 620px;
+}
+.hall-pick-bullets {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+.hall-pick-bullets li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--text);
+  font-weight: 500;
+}
+.hall-pick-bullets li span {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.hall-pick-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 28px;
+  background: var(--ink);
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 14px;
+  flex-shrink: 0;
+  transition: background 0.18s, transform 0.15s;
+  box-shadow: 0 4px 12px rgba(10, 10, 10, 0.18);
+}
+.hall-pick:hover .hall-pick-cta { background: var(--accent); }
+.hall-pick-cta-arrow {
+  font-size: 18px;
   transition: transform 0.18s;
 }
-.hall-quick-link-feature:hover .hall-quick-arrow { transform: translateX(4px); }
+.hall-pick:hover .hall-pick-cta-arrow { transform: translateX(4px); }
+
+@media (max-width: 880px) {
+  .hall-pick {
+    grid-template-columns: auto 1fr;
+    gap: 18px 16px;
+    padding: 28px 24px;
+  }
+  .hall-pick-icon { width: 64px; height: 64px; font-size: 32px; border-radius: 18px; }
+  .hall-pick-cta {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    justify-content: center;
+  }
+}
+
+/* Secondary quick links — 2-column row below centerpiece */
+.hall-quick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 720px) { .hall-quick { grid-template-columns: 1fr; } }
 .hall-quick-link {
   background: var(--surface);
   border: 1px solid var(--border);

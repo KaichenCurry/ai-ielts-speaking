@@ -4,7 +4,7 @@ import {
   createMockAttempt,
   findInProgressAttempt,
 } from "@/lib/data/attempts";
-import { buildMockPaperPlan } from "@/lib/data/papers";
+import { buildMockPaperPlan, ensureMockPaperPersisted } from "@/lib/data/papers";
 import { getServerUser } from "@/lib/supabase/auth-server";
 import type { MockPaperPlan } from "@/lib/types";
 
@@ -70,6 +70,9 @@ async function startMockAttemptAction(formData: FormData) {
   try {
     plan = await buildMockPaperPlan(paperId);
     if (plan) {
+      // Auto-generated recommended papers live only in memory by default.
+      // Upsert into mock_papers first so the attempt's FK is satisfied.
+      await ensureMockPaperPersisted(plan.paper);
       existing = await findInProgressAttempt(user.id, paperId);
       if (!existing) {
         attempt = await createMockAttempt({

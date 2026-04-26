@@ -184,3 +184,56 @@ create index if not exists practice_sessions_appeal_status_idx
 
 create index if not exists practice_sessions_review_status_idx
   on public.practice_sessions (review_status);
+
+-- ─── Mock exam (full speaking test) ──────────────────────────────
+-- A mock_attempt represents one full Part1→Part2→Part3 sitting.
+-- Each question answered inside the attempt is still persisted as a
+-- practice_sessions row (with mock_attempt_id + section_index set), so
+-- that admin review tooling continues to work at the per-question level.
+
+create table if not exists public.mock_papers (
+  id text primary key,
+  season text not null,
+  title text not null,
+  part1_topic_slugs text[] not null default '{}',
+  part23_topic_slug text not null,
+  difficulty text not null default 'medium',
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists mock_papers_season_idx
+  on public.mock_papers (season);
+create index if not exists mock_papers_active_idx
+  on public.mock_papers (is_active);
+
+create table if not exists public.mock_attempts (
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  paper_id text not null references public.mock_papers(id) on delete restrict,
+  season text not null,
+  status text not null default 'in_progress',
+  started_at timestamptz not null default now(),
+  submitted_at timestamptz null,
+  scored_at timestamptz null,
+  total_score numeric null,
+  band_scores jsonb null,
+  summary text null,
+  resume_state jsonb null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists mock_attempts_user_idx
+  on public.mock_attempts (user_id, created_at desc);
+create index if not exists mock_attempts_status_idx
+  on public.mock_attempts (status);
+create index if not exists mock_attempts_paper_idx
+  on public.mock_attempts (paper_id);
+
+alter table public.practice_sessions
+  add column if not exists mock_attempt_id text null
+    references public.mock_attempts(id) on delete cascade,
+  add column if not exists section_index integer null;
+
+create index if not exists practice_sessions_mock_attempt_idx
+  on public.practice_sessions (mock_attempt_id);

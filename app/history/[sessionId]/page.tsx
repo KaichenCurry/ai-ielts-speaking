@@ -14,7 +14,7 @@ export default async function HistoryDetailPage({
   return (
     <PageShell
       title="完整练习记录"
-      description="这里会完整展示这次练习的题目、转写、评分反馈，以及申诉和人工处理状态。"
+      description="这里会完整展示这次练习的题目、转写、评分反馈，以及申诉和人工处理状态"
       actions={
         <div className="action-row">
           <Link className="link-button secondary" href="/history">

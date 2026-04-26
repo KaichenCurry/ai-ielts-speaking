@@ -35,20 +35,20 @@ function getSourceSummary(isLocalOnly: boolean, hasLiveResult: boolean) {
   if (isLocalOnly) {
     return {
       badge: "即时结果",
-      description: "这是你刚完成练习后看到的即时评分结果，目前只保存在当前浏览器里。",
+      description: "这是你刚完成练习后看到的即时评分结果，目前只保存在当前浏览器里",
     };
   }
 
   if (hasLiveResult) {
     return {
       badge: "刚完成练习",
-      description: "这是你刚完成练习后的即时结果；同时，这次练习也已经保存到历史记录里。",
+      description: "这是你刚完成练习后的即时结果；同时，这次练习也已经保存到历史记录里",
     };
   }
 
   return {
     badge: "历史结果",
-    description: "这是已保存的历史结果，适合回看评分、反馈和申诉处理状态。",
+    description: "这是已保存的历史结果，适合回看评分、反馈和申诉处理状态",
   };
 }
 
@@ -134,8 +134,8 @@ export function ResultClientView({ dashboardStats, fallbackSession, sessionId }:
     return (
       <div className="result-layout">
         <SectionCard title="未找到结果">
-          <p>当前没有查到这次练习的保存结果，也没有浏览器里的即时记录。</p>
-          <p className="inline-note">请先完成一次练习，或返回历史记录页查看可用会话。</p>
+          <p>当前没有查到这次练习的保存结果，也没有浏览器里的即时记录</p>
+          <p className="inline-note">请先完成一次练习，或返回历史记录页查看可用会话</p>
         </SectionCard>
       </div>
     );
@@ -177,8 +177,7 @@ export function ResultClientView({ dashboardStats, fallbackSession, sessionId }:
 
         <SectionCard title="你的回答转写">
           <p className="inline-note" style={{ marginBottom: 12 }}>
-            以下是 AI 对你录音的转写，评分与反馈都基于这份内容。如果转写明显不对，可以在页面底部提交申诉。
-          </p>
+            以下是 AI 对你录音的转写，评分与反馈都基于这份内容如果转写明显不对，可以在页面底部提交申诉          </p>
           <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8 }}>{resultTranscript}</p>
         </SectionCard>
       </div>
@@ -223,11 +222,11 @@ export function ResultClientView({ dashboardStats, fallbackSession, sessionId }:
 
       <div className="result-two-col">
         <SectionCard title="这次回答的优点">
-          {renderFeedbackList(resultFeedback!.strengths, "这次还没有提炼出明确优点。")}
+          {renderFeedbackList(resultFeedback!.strengths, "这次还没有提炼出明确优点")}
         </SectionCard>
 
         <SectionCard title="优先改进点">
-          {renderFeedbackList(resultFeedback!.priorities, "这次还没有生成优先改进点。")}
+          {renderFeedbackList(resultFeedback!.priorities, "这次还没有生成优先改进点")}
         </SectionCard>
       </div>
 
@@ -240,20 +239,19 @@ export function ResultClientView({ dashboardStats, fallbackSession, sessionId }:
       <div className="result-two-col">
         {resultFeedback!.pronunciationFocus && resultFeedback!.pronunciationFocus.length > 0 ? (
           <SectionCard title="本次回答发音重点">
-            <p className="inline-note" style={{ marginBottom: 12 }}>以下是你本次回答中值得注意的发音，附 IPA 音标和练习提示。</p>
+            <p className="inline-note" style={{ marginBottom: 12 }}>以下是你本次回答中值得注意的发音，附 IPA 音标和练习提示</p>
             <PronunciationSection items={resultFeedback!.pronunciationFocus} title="" />
           </SectionCard>
         ) : (
           <SectionCard title="本次回答发音重点">
-            <p className="inline-note">这次没有单独生成发音重点。</p>
+            <p className="inline-note">这次没有单独生成发音重点</p>
           </SectionCard>
         )}
 
         {resultFeedback!.improvedAnswer ? (
           <SectionCard title="基于你的回答 — 加强版改进答案">
             <p className="inline-note" style={{ marginBottom: 12 }}>
-              保留了你的核心想法，在词汇、语法、连贯性上做了升级。对比原文，找出差距。
-            </p>
+              保留了你的核心想法，在词汇、语法、连贯性上做了升级对比原文，找出差距            </p>
             <AnswerBlock
               answer={resultFeedback!.improvedAnswer}
               pronunciation={resultFeedback!.improvedAnswerPronunciation}
@@ -263,7 +261,7 @@ export function ResultClientView({ dashboardStats, fallbackSession, sessionId }:
           </SectionCard>
         ) : (
           <SectionCard title="基于你的回答 — 加强版改进答案">
-            <p className="inline-note">这次还没有生成改进版答案。</p>
+            <p className="inline-note">这次还没有生成改进版答案</p>
           </SectionCard>
         )}
       </div>
@@ -271,8 +269,7 @@ export function ResultClientView({ dashboardStats, fallbackSession, sessionId }:
       {resultFeedback!.sampleAnswer ? (
         <SectionCard title="高分示范答案（Band 7-8）">
           <p className="inline-note" style={{ marginBottom: 12 }}>
-            这是针对本题的高分参考答案，展示了优秀的词汇和语法运用。
-          </p>
+            这是针对本题的高分参考答案，展示了优秀的词汇和语法运用          </p>
           <AnswerBlock
             answer={resultFeedback!.sampleAnswer}
             pronunciation={resultFeedback!.sampleAnswerPronunciation}
@@ -286,7 +283,7 @@ export function ResultClientView({ dashboardStats, fallbackSession, sessionId }:
         {sessionForAppeal ? (
           <AppealActionPanel session={sessionForAppeal} />
         ) : (
-          <p className="inline-note">当前展示的是仅保存在浏览器中的即时结果，只有保存到历史后的记录才支持申诉。</p>
+          <p className="inline-note">当前展示的是仅保存在浏览器中的即时结果，只有保存到历史后的记录才支持申诉</p>
         )}
       </SectionCard>
     </div>

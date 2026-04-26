@@ -62,7 +62,11 @@ function mapRecordToAdminSession(record: PracticeSessionRecord): AdminPracticeSe
   };
 }
 
-function mapScoreToRecord(result: LiveScoringResult, userId: string): PracticeSessionRecord {
+function mapScoreToRecord(
+  result: LiveScoringResult,
+  userId: string,
+  options: { mockAttemptId?: string | null; sectionIndex?: number | null } = {},
+): PracticeSessionRecord {
   return {
     id: result.sessionId,
     user_id: userId,
@@ -106,6 +110,8 @@ function mapScoreToRecord(result: LiveScoringResult, userId: string): PracticeSe
     review_note: "",
     reviewed_at: null,
     created_at: result.createdAt,
+    mock_attempt_id: options.mockAttemptId ?? null,
+    section_index: options.sectionIndex ?? null,
   };
 }
 
@@ -139,6 +145,53 @@ export async function createPracticeSessionFromScore(result: LiveScoringResult, 
   }
 
   return result.sessionId;
+}
+
+/**
+ * Persist one question of a mock attempt into practice_sessions, with the
+ * mock_attempt_id + section_index columns set so admin tooling can drill
+ * down from an attempt to each per-question record.
+ */
+export async function createMockSegmentSession(
+  result: LiveScoringResult,
+  userId: string,
+  options: { mockAttemptId: string; sectionIndex: number },
+) {
+  if (!isSupabaseConfigured()) {
+    return result.sessionId;
+  }
+  if (!userId) {
+    throw new Error("Authentication required before persisting practice sessions.");
+  }
+
+  const supabase = createSupabaseServerClient();
+  const record = mapScoreToRecord(result, userId, options);
+  const { error } = await supabase.from("practice_sessions").upsert(record);
+
+  if (error) {
+    throw new Error(`Failed to persist mock segment session: ${error.message}`);
+  }
+  return result.sessionId;
+}
+
+/**
+ * Load every per-question session row that belongs to a given mock attempt,
+ * ordered by section_index so the report can render in true exam order.
+ */
+export async function listSessionsForMockAttempt(
+  mockAttemptId: string,
+): Promise<PracticeSession[]> {
+  if (!isSupabaseConfigured()) return [];
+
+  const supabase = createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("practice_sessions")
+    .select("*")
+    .eq("mock_attempt_id", mockAttemptId)
+    .order("section_index", { ascending: true });
+
+  if (error || !data) return [];
+  return (data as PracticeSessionRecord[]).map(mapRecordToSession);
 }
 
 export async function submitPracticeSessionAppeal(sessionId: string, appealNote: string) {

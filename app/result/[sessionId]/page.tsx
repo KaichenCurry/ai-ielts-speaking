@@ -18,11 +18,11 @@ export default async function ResultPage({
   return (
     <PageShell
       title="评分反馈"
-      description="先看懂这次练习的即时反馈，再决定是继续练习、查看完整记录，还是提交申诉。"
+      description="先看懂这次练习的即时反馈，再决定是继续练习、查看完整记录，还是提交申诉"
       actions={
         <div className="action-row">
-          <Link className="link-button secondary" href="/practice">
-            继续练习
+          <Link className="link-button secondary" href="/mock">
+            返回模考大厅
           </Link>
           <Link className="link-button secondary" href="/history">
             查看历史记录

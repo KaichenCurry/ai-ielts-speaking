@@ -26,21 +26,21 @@ export function AppealActionPanel({ session }: { session: PracticeSession }) {
 
   const statusDescription = useMemo(() => {
     if (isReviewed) {
-      return "这条申诉已经处理完成。你可以直接查看下面的处理结论、备注和时间。";
+      return "这条申诉已经处理完成你可以直接查看下面的处理结论、备注和时间";
     }
 
     if (isSubmitted) {
-      return "你的申诉已经提交成功，当前正在等待人工处理。处理完成后，这里会更新最新状态。";
+      return "你的申诉已经提交成功，当前正在等待人工处理处理完成后，这里会更新最新状态";
     }
 
-    return "如果你觉得转写、评分或反馈有明显问题，可以在这里补充说明并提交一次申诉。";
+    return "如果你觉得转写、评分或反馈有明显问题，可以在这里补充说明并提交一次申诉";
   }, [isReviewed, isSubmitted]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!trimmedAppealNote) {
-      setError("请先写清楚你认为哪里有问题，再提交申诉。");
+      setError("请先写清楚你认为哪里有问题，再提交申诉");
       setSuccess("");
       return;
     }
@@ -67,11 +67,11 @@ export function AppealActionPanel({ session }: { session: PracticeSession }) {
         throw new Error(payload.error || "Appeal submission failed.");
       }
 
-      setSuccess("申诉已提交。页面将刷新，随后你会看到最新状态。");
+      setSuccess("申诉已提交页面将刷新，随后你会看到最新状态");
       router.refresh();
     } catch (submitError) {
       console.error(submitError);
-      setError(submitError instanceof Error ? submitError.message : "申诉提交失败。");
+      setError(submitError instanceof Error ? submitError.message : "申诉提交失败");
     } finally {
       setSubmitting(false);
     }
@@ -96,7 +96,7 @@ export function AppealActionPanel({ session }: { session: PracticeSession }) {
           value={appealNote}
           onChange={(event) => setAppealNote(event.target.value)}
           rows={4}
-          placeholder="例如：转写遗漏了关键句子，导致评分和反馈明显不准确。"
+          placeholder="例如：转写遗漏了关键句子，导致评分和反馈明显不准确"
           disabled={isLocked || submitting}
         />
       </label>
@@ -104,10 +104,10 @@ export function AppealActionPanel({ session }: { session: PracticeSession }) {
       <div className="submission-panel">
         <p>
           {isReviewed
-            ? "这条申诉已经处理完成；如果需要复盘，可以结合结果页和完整记录页一起查看。"
+            ? "这条申诉已经处理完成；如果需要复盘，可以结合结果页和完整记录页一起查看"
             : isSubmitted
-              ? "你现在不需要重复提交，等待处理完成即可。"
-              : "提交后，这条记录会进入人工处理流程。处理完成后，你可以在结果页和历史详情页查看更新。"}
+              ? "你现在不需要重复提交，等待处理完成即可"
+              : "提交后，这条记录会进入人工处理流程处理完成后，你可以在结果页和历史详情页查看更新"}
         </p>
         <button className="action-button primary" disabled={isLocked || submitting} type="submit">
           {submitting ? "提交中..." : isReviewed ? "申诉已处理" : isSubmitted ? "等待处理" : "提交申诉"}

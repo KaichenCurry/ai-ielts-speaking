@@ -166,9 +166,9 @@ export function HistoryListClient({ initialSessions }: HistoryListClientProps) {
   if (sessions.length === 0) {
     return (
       <div className="placeholder-box history-empty">
-        <p>还没有练习记录，去完成第一次练习吧。</p>
-        <Link className="link-button" href="/practice" style={{ marginTop: 16, display: "inline-flex" }}>
-          开始练习
+        <p>还没有完整模考记录，去完成第一场吧</p>
+        <Link className="link-button" href="/mock" style={{ marginTop: 16, display: "inline-flex" }}>
+          开始模考
         </Link>
       </div>
     );
@@ -266,8 +266,8 @@ export function HistoryListClient({ initialSessions }: HistoryListClientProps) {
 
       {filteredSessions.length === 0 ? (
         <div className="placeholder-box history-empty">
-          <p>当前筛选条件下没有匹配的练习记录。</p>
-          <p className="inline-note" style={{ marginTop: 8 }}>试试放宽关键词、改成全部模块，或清空筛选条件。</p>
+          <p>当前筛选条件下没有匹配的练习记录</p>
+          <p className="inline-note" style={{ marginTop: 8 }}>试试放宽关键词、改成全部模块，或清空筛选条件</p>
         </div>
       ) : (
         <div className="list-grid">

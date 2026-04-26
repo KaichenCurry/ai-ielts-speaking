@@ -86,8 +86,8 @@ export function HistoryDetailClient({ fallbackSession, sessionId }: HistoryDetai
     return (
       <div className="result-layout">
         <SectionCard title="未找到练习记录">
-          <p>当前没有查到这次练习的保存结果，也没有浏览器里的本地记录。</p>
-          <p className="inline-note">请先完成一次练习，或返回历史记录页查看可用会话。</p>
+          <p>当前没有查到这次练习的保存结果，也没有浏览器里的本地记录</p>
+          <p className="inline-note">请先完成一次练习，或返回历史记录页查看可用会话</p>
         </SectionCard>
       </div>
     );
@@ -142,8 +142,7 @@ export function HistoryDetailClient({ fallbackSession, sessionId }: HistoryDetai
 
       <SectionCard title="你的回答转写">
         <p className="inline-note" style={{ marginBottom: 8 }}>
-          这是系统根据你的录音整理出的文本，下面的评分与反馈都基于这份转写。
-        </p>
+          这是系统根据你的录音整理出的文本，下面的评分与反馈都基于这份转写        </p>
         <p style={{ fontSize: 14, color: "var(--text-secondary)", lineHeight: 1.8 }}>{session.transcript}</p>
       </SectionCard>
 
@@ -153,11 +152,11 @@ export function HistoryDetailClient({ fallbackSession, sessionId }: HistoryDetai
 
       <div className="result-two-col">
         <SectionCard title="这次回答的优点">
-          {renderFeedbackList(session.feedback.strengths, "这次还没有提炼出明确优点。")}
+          {renderFeedbackList(session.feedback.strengths, "这次还没有提炼出明确优点")}
         </SectionCard>
 
         <SectionCard title="优先改进点">
-          {renderFeedbackList(session.feedback.priorities, "这次还没有生成优先改进点。")}
+          {renderFeedbackList(session.feedback.priorities, "这次还没有生成优先改进点")}
         </SectionCard>
       </div>
 
@@ -174,7 +173,7 @@ export function HistoryDetailClient({ fallbackSession, sessionId }: HistoryDetai
           </SectionCard>
         ) : (
           <SectionCard title="本次回答发音重点">
-            <p className="inline-note">这次没有单独生成发音重点。</p>
+            <p className="inline-note">这次没有单独生成发音重点</p>
           </SectionCard>
         )}
 
@@ -189,7 +188,7 @@ export function HistoryDetailClient({ fallbackSession, sessionId }: HistoryDetai
           </SectionCard>
         ) : (
           <SectionCard title="基于你的回答 — 加强版改进答案">
-            <p className="inline-note">这次还没有生成改进版答案。</p>
+            <p className="inline-note">这次还没有生成改进版答案</p>
           </SectionCard>
         )}
       </div>
@@ -209,7 +208,7 @@ export function HistoryDetailClient({ fallbackSession, sessionId }: HistoryDetai
         {fallbackSession ? (
           <AppealActionPanel session={fallbackSession} />
         ) : (
-          <p className="inline-note">当前展示的是仅保存在浏览器中的即时结果，只有保存到历史后的记录才支持申诉。</p>
+          <p className="inline-note">当前展示的是仅保存在浏览器中的即时结果，只有保存到历史后的记录才支持申诉</p>
         )}
       </SectionCard>
     </div>

@@ -190,6 +190,8 @@ export type PracticeSessionRecord = {
   review_note: string;
   reviewed_at: string | null;
   created_at: string;
+  mock_attempt_id: string | null;
+  section_index: number | null;
 };
 
 export type QuestionDifficulty = "easy" | "medium" | "hard";
@@ -316,4 +318,93 @@ export type CreateQuestionInput = {
 
 export type UpdateQuestionInput = CreateQuestionInput & {
   id: string;
+};
+
+// ─── Mock exam (full-test) types ────────────────────────────────
+
+export type MockAttemptStatus = "in_progress" | "submitted" | "scored" | "failed";
+
+export type MockSectionKind =
+  | "part1"
+  | "transition-12"
+  | "part2-prep"
+  | "part2-talk"
+  | "transition-23"
+  | "part3";
+
+export type MockPaper = {
+  id: string;
+  season: string;
+  title: string;
+  part1TopicSlugs: string[];
+  part23TopicSlug: string;
+  difficulty: QuestionDifficulty;
+  isActive: boolean;
+  createdAt: string;
+};
+
+export type MockPaperRecord = {
+  id: string;
+  season: string;
+  title: string;
+  part1_topic_slugs: string[];
+  part23_topic_slug: string;
+  difficulty: QuestionDifficulty;
+  is_active: boolean;
+  created_at: string;
+};
+
+export type MockPaperQuestion = QuestionMetadata & {
+  part: SpeakingPart;
+  helper: string;
+  cueCardBullets?: string[];
+  preparationSeconds?: number;
+  targetSeconds?: number;
+};
+
+export type MockPaperPlan = {
+  paper: MockPaper;
+  part1Questions: MockPaperQuestion[];
+  part2Question: MockPaperQuestion;
+  part3Questions: MockPaperQuestion[];
+  estimatedDurationSeconds: number;
+};
+
+export type MockAttempt = {
+  id: string;
+  userId: string;
+  paperId: string;
+  season: string;
+  status: MockAttemptStatus;
+  startedAt: string;
+  submittedAt: string | null;
+  scoredAt: string | null;
+  totalScore: number | null;
+  bandScores: ScoreBreakdown | null;
+  summary: string | null;
+  resumeState: MockAttemptResumeState | null;
+  createdAt: string;
+};
+
+export type MockAttemptRecord = {
+  id: string;
+  user_id: string;
+  paper_id: string;
+  season: string;
+  status: MockAttemptStatus;
+  started_at: string;
+  submitted_at: string | null;
+  scored_at: string | null;
+  total_score: number | null;
+  band_scores: ScoreBreakdown | null;
+  summary: string | null;
+  resume_state: MockAttemptResumeState | null;
+  created_at: string;
+};
+
+export type MockAttemptResumeState = {
+  currentSectionIndex: number;
+  currentQuestionIndex: number;
+  notes?: string;
+  completedQuestionIds?: string[];
 };

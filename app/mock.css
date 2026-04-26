@@ -1194,10 +1194,86 @@ body {
   line-height: 1.55;
 }
 
-/* Resume banner */
+/* Alert banner — shows server action errors (missing schema, anon auth disabled, etc.) */
+.hall-alert {
+  display: flex;
+  gap: 16px;
+  padding: 18px 22px;
+  border-radius: var(--radius-xl);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  color: var(--ink);
+  align-items: flex-start;
+}
+.hall-alert-schema {
+  background: #fef2e9;
+  border-color: var(--accent-hover);
+}
+.hall-alert-auth {
+  background: #fef3c7;
+  border-color: #d97706;
+}
+.hall-alert-generic {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+}
+.hall-alert-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: white;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 16px;
+  font-family: var(--font-mono);
+}
+.hall-alert-generic .hall-alert-icon { background: var(--danger); }
+.hall-alert-auth .hall-alert-icon { background: #d97706; }
+.hall-alert-body { flex: 1; display: grid; gap: 6px; }
+.hall-alert-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.hall-alert-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+}
+.hall-alert-details {
+  margin-top: 6px;
+}
+.hall-alert-details summary {
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  user-select: none;
+}
+.hall-alert-details code {
+  display: block;
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: rgba(10, 10, 10, 0.06);
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Resume banner — light theme accent variant, draws attention without dark wash */
 .hall-resume {
-  background: var(--ink);
-  color: var(--bg);
+  background: var(--accent-soft);
+  color: var(--ink);
+  border: 1px solid var(--accent);
   border-radius: var(--radius-xl);
   padding: 24px 28px;
   display: flex;
@@ -1205,7 +1281,7 @@ body {
   align-items: center;
   gap: 20px;
   flex-wrap: wrap;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
 }
 .hall-resume-info { display: grid; gap: 6px; }
 .hall-resume-tag {
@@ -1215,7 +1291,7 @@ body {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.05em;
-  color: var(--accent);
+  color: var(--accent-hover);
   text-transform: uppercase;
 }
 .hall-resume-tag::before {
@@ -1231,11 +1307,12 @@ body {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
+  color: var(--ink);
 }
 .hall-resume-when {
   margin: 0;
   font-size: 13px;
-  color: rgba(250, 248, 243, 0.65);
+  color: var(--text-secondary);
   font-family: var(--font-mono);
 }
 
@@ -1839,8 +1916,9 @@ body {
 .mock-intro-check-link:hover { color: var(--accent-hover); }
 
 .mock-intro-confirm {
-  background: var(--ink);
-  color: var(--bg);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-xl);
   padding: 48px;
   display: grid;
@@ -1848,12 +1926,22 @@ body {
   justify-items: center;
   text-align: center;
   box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
 }
+.mock-intro-confirm::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(234, 88, 12, 0.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+.mock-intro-confirm > * { position: relative; z-index: 1; }
 .mock-intro-confirm form { display: grid; gap: 20px; justify-items: center; }
 .mock-confirm-note {
   margin: 0;
   font-size: 16px;
-  color: rgba(250, 248, 243, 0.78);
+  color: var(--text-secondary);
   max-width: 460px;
   line-height: 1.55;
 }

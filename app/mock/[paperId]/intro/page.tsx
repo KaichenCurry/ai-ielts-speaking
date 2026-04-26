@@ -58,22 +58,45 @@ async function startMockAttemptAction(formData: FormData) {
     redirect("/mock");
   }
 
-  const plan = await buildMockPaperPlan(paperId);
+  // Run any DB-touching work in try/catch so a missing table (schema not
+  // run) or transient Supabase error surfaces as a friendly banner on /mock
+  // instead of Next's generic "server error" page. Critically, redirect()
+  // throws an internal NEXT_REDIRECT — we keep all redirects OUTSIDE the
+  // try block so they're never swallowed.
+  let plan = null;
+  let existing = null;
+  let attempt = null;
+  let errorMessage: string | null = null;
+  try {
+    plan = await buildMockPaperPlan(paperId);
+    if (plan) {
+      existing = await findInProgressAttempt(user.id, paperId);
+      if (!existing) {
+        attempt = await createMockAttempt({
+          userId: user.id,
+          paperId,
+          season: plan.paper.season,
+        });
+      }
+    }
+  } catch (err) {
+    console.error("startMockAttemptAction failed:", err);
+    errorMessage = err instanceof Error ? err.message : "未知错误";
+  }
+
+  if (errorMessage) {
+    redirect(`/mock?error=${encodeURIComponent(errorMessage.slice(0, 200))}`);
+  }
   if (!plan) {
     redirect("/mock");
   }
-
-  const existing = await findInProgressAttempt(user.id, paperId);
   if (existing) {
     redirect(`/mock/${paperId}/run?attemptId=${existing.id}`);
   }
-
-  const attempt = await createMockAttempt({
-    userId: user.id,
-    paperId,
-    season: plan.paper.season,
-  });
-  redirect(`/mock/${paperId}/run?attemptId=${attempt.id}`);
+  if (attempt) {
+    redirect(`/mock/${paperId}/run?attemptId=${attempt.id}`);
+  }
+  redirect("/mock");
 }
 
 export default async function MockIntroPage({

@@ -88,16 +88,17 @@
   letter-spacing: -0.02em;
 }
 
-/* OVERALL SCORE — featured card */
+/* OVERALL SCORE — light card with accent score panel */
 .report-overall {
   display: grid;
   grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
   gap: 0;
-  background: var(--ink);
-  color: var(--bg);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-2xl);
   overflow: hidden;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
 }
 .report-overall-score {
   text-align: center;
@@ -114,7 +115,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   font-weight: 700;
-  opacity: 0.9;
+  opacity: 0.92;
 }
 .report-overall-num {
   margin: 0;
@@ -129,7 +130,7 @@
   margin: 4px 0 0;
   font-size: 13px;
   font-weight: 600;
-  opacity: 0.8;
+  opacity: 0.85;
 }
 .report-overall-summary {
   padding: 40px 44px;
@@ -142,12 +143,12 @@
   font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: rgba(250, 248, 243, 0.95);
+  color: var(--ink);
 }
 .report-overall-summary p {
   margin: 0;
   font-size: 15px;
-  color: rgba(250, 248, 243, 0.78);
+  color: var(--text-secondary);
   line-height: 1.65;
 }
 

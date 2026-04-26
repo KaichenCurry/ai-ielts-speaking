@@ -47,20 +47,57 @@ function decorate(papers: MockPaperPreview[], attempts: MockAttempt[]): Decorate
   });
 }
 
-export default async function MockHallPage() {
+function classifyError(raw: string): { kind: "schema" | "auth" | "generic"; hint: string } {
+  const lower = raw.toLowerCase();
+  if (lower.includes("does not exist") || lower.includes("relation") || lower.includes("undefined table")) {
+    return {
+      kind: "schema",
+      hint: "Supabase 数据库 schema 不完整 —— 请在 Supabase Dashboard → SQL Editor 把最新的 supabase/schema.sql 整份重跑一次（含 mock_papers、mock_attempts 两张新表）",
+    };
+  }
+  if (lower.includes("anonymous")) {
+    return {
+      kind: "auth",
+      hint: "Supabase 还没启用访客模式 —— Authentication → Sign In / Providers → Anonymous Sign-Ins 开启",
+    };
+  }
+  return { kind: "generic", hint: raw };
+}
+
+export default async function MockHallPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ error?: string }>;
+}) {
   const user = await getServerUser();
   if (!user) {
     redirect("/login");
   }
 
-  const [papers, attempts] = await Promise.all([
-    listMockPapersWithPreview(),
-    listMockAttemptsForUser(user.id, 100),
-  ]);
+  const resolvedSearch = searchParams ? await searchParams : undefined;
+  const errorRaw = resolvedSearch?.error?.toString().trim() ?? "";
+  const errorInfo = errorRaw ? classifyError(errorRaw) : null;
+
+  // Don't crash the whole page if the data layer throws — surface a setup
+  // banner instead, so the user knows what to fix in Supabase / Vercel.
+  let papers: Awaited<ReturnType<typeof listMockPapersWithPreview>> = [];
+  let attempts: Awaited<ReturnType<typeof listMockAttemptsForUser>> = [];
+  let dataLoadError: string | null = null;
+  try {
+    [papers, attempts] = await Promise.all([
+      listMockPapersWithPreview(),
+      listMockAttemptsForUser(user.id, 100),
+    ]);
+  } catch (err) {
+    console.error("MockHallPage data load failed:", err);
+    dataLoadError = err instanceof Error ? err.message : "数据加载失败";
+  }
+
   const season = getCurrentSeason();
   const decorated = decorate(papers, attempts);
   const recentInProgress = attempts.find((a) => a.status === "in_progress");
   const totalCompleted = attempts.filter((a) => a.status === "scored").length;
+  const finalErrorInfo = errorInfo ?? (dataLoadError ? classifyError(dataLoadError) : null);
 
   return (
     <div className="hall">
@@ -76,6 +113,29 @@ export default async function MockHallPage() {
           想自己挑题目？点下方「自选题目模考」
         </p>
       </header>
+
+      {/* ERROR BANNER — surfaces setup or data-layer failures */}
+      {finalErrorInfo ? (
+        <section className={`hall-alert hall-alert-${finalErrorInfo.kind}`} role="alert">
+          <div className="hall-alert-icon" aria-hidden>!</div>
+          <div className="hall-alert-body">
+            <p className="hall-alert-title">
+              {finalErrorInfo.kind === "schema"
+                ? "数据库未配置完成"
+                : finalErrorInfo.kind === "auth"
+                  ? "访客模式未启用"
+                  : "操作未能完成"}
+            </p>
+            <p className="hall-alert-hint">{finalErrorInfo.hint}</p>
+            {finalErrorInfo.kind === "generic" ? (
+              <details className="hall-alert-details">
+                <summary>查看技术细节</summary>
+                <code>{errorRaw || dataLoadError}</code>
+              </details>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
       {/* RESUME BANNER */}
       {recentInProgress ? (

@@ -17,21 +17,35 @@ async function startCustomMockAction(formData: FormData) {
   const part1Slugs = formData.getAll("part1").map((v) => String(v).trim()).filter(Boolean);
   const part23Slug = String(formData.get("part23") ?? "").trim();
 
-  // Validation will throw if invalid; the server action surfaces the message
-  // back to the client form via a thrown error → Next renders an error overlay
-  // in dev. For prod we return early with a message via error UI in P3.
-  const paper = await createCustomMockPaper({
-    userId: user.id,
-    part1TopicSlugs: part1Slugs,
-    part23TopicSlug: part23Slug,
-  });
+  // Same defensive pattern as the intro server action: do all DB work
+  // inside try/catch and only redirect outside, so a missing table /
+  // schema mismatch lands on /mock with a banner instead of a generic 500.
+  let paper = null;
+  let attempt = null;
+  let errorMessage: string | null = null;
+  try {
+    paper = await createCustomMockPaper({
+      userId: user.id,
+      part1TopicSlugs: part1Slugs,
+      part23TopicSlug: part23Slug,
+    });
+    attempt = await createMockAttempt({
+      userId: user.id,
+      paperId: paper.id,
+      season: paper.season,
+    });
+  } catch (err) {
+    console.error("startCustomMockAction failed:", err);
+    errorMessage = err instanceof Error ? err.message : "未知错误";
+  }
 
-  const attempt = await createMockAttempt({
-    userId: user.id,
-    paperId: paper.id,
-    season: paper.season,
-  });
-  redirect(`/mock/${paper.id}/run?attemptId=${attempt.id}`);
+  if (errorMessage) {
+    redirect(`/mock?error=${encodeURIComponent(errorMessage.slice(0, 200))}`);
+  }
+  if (paper && attempt) {
+    redirect(`/mock/${paper.id}/run?attemptId=${attempt.id}`);
+  }
+  redirect("/mock");
 }
 
 export default async function CustomMockPage() {

@@ -14,8 +14,10 @@ export default async function RegisterPage() {
   if (user?.is_anonymous) {
     redirect("/upgrade");
   }
+  // Already-authed real users go back to the homepage to make their own
+  // next move; the homepage CTAs route from there.
   if (user) {
-    redirect("/mock");
+    redirect("/");
   }
 
   return (

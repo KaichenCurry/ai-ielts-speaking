@@ -16,7 +16,11 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [success, setSuccess] = useState("");
 
   const isLogin = mode === "login";
-  const nextPath = searchParams.get("next") || "/mock";
+  // After auth, default to the homepage so the user lands on the same
+  // entry point as everyone else and chooses where to go from there.
+  // A specific destination only applies if it was explicitly captured
+  // (e.g. "/login?next=/mock" when a guest tried to enter a gated page).
+  const nextPath = searchParams.get("next") || "/";
   const alternateAuthPath = new URLSearchParams(searchParams.toString());
   const alternateModeHref = `${isLogin ? "/register" : "/login"}${alternateAuthPath.toString() ? `?${alternateAuthPath.toString()}` : ""}`;
 

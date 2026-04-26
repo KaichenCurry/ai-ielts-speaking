@@ -36,7 +36,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <div className="sb-frame">
           <header className="sb-nav">
             <div className="sb-nav-inner">
-              <Link href={user ? "/mock" : "/"} className="sb-brand">
+              <Link href="/" className="sb-brand">
                 <span className="sb-brand-mark" aria-hidden>
                   <span className="sb-brand-mark-dot" />
                   <span className="sb-brand-mark-ring" />

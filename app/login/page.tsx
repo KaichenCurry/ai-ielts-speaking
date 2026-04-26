@@ -9,10 +9,11 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage() {
   const user = await getServerUser();
 
-  // Real (non-anonymous) users go straight to /mock.
-  // Anonymous users land here on purpose (to upgrade) — let them stay.
+  // Already-authed real users bounce to the homepage so they make their own
+  // next move (browse / start mock / view reports). Anonymous users land
+  // here on purpose (to upgrade) — let them stay.
   if (user && !user.is_anonymous) {
-    redirect("/mock");
+    redirect("/");
   }
 
   return (

@@ -77,9 +77,11 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Already signed in: the auth pages should bounce to the product (mock hall).
+  // Already signed in: auth pages bounce back to the homepage so the user
+  // can decide what to do next (browse / start mock / view reports). The
+  // homepage CTA chain handles the rest.
   if (isAuthPath) {
-    return NextResponse.redirect(new URL("/mock", request.url));
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   if ((isAdminPath || isAdminApi) && !isAdmin) {
@@ -87,7 +89,7 @@ export async function proxy(request: NextRequest) {
       return jsonError("Admin access required.", 403);
     }
 
-    return NextResponse.redirect(new URL("/mock", request.url));
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   return response;

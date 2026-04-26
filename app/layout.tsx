@@ -145,7 +145,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                   © {currentYear} {COPYRIGHT_HOLDER} · 版权所有 · {BRAND_NAME_CN} {BRAND_NAME_EN}
                 </p>
                 <p className="sb-foot-meta">
-                  <span>京ICP备 2026000001 号</span>
+                  <span>ICP 备案中</span>
                   <span>·</span>
                   <span>v0.4 · {season.id}</span>
                 </p>

@@ -25,6 +25,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Transcription service is not configured." }, { status: 500 });
     }
 
+    // Reject obviously oversized uploads BEFORE awaiting formData() — that
+    // call buffers the entire multipart body in memory, so we don't want
+    // a 100 MB request to chew through the lambda before we say no.
+    const contentLength = Number(request.headers.get("content-length") ?? 0);
+    // Multipart adds a small wrapper overhead; allow 1 MB headroom over the
+    // raw audio limit to avoid false positives on near-cap uploads.
+    if (contentLength > MAX_AUDIO_SIZE_BYTES + 1_048_576) {
+      return NextResponse.json(
+        { error: "Audio upload too large." },
+        { status: 413 },
+      );
+    }
+
     const formData = await request.formData();
     const audio = formData.get("audio");
 

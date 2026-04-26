@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerUser } from "@/lib/supabase/auth-server";
 import { listMockAttemptsForUser } from "@/lib/data/attempts";
-import { getCurrentSeason } from "@/lib/data/papers";
+import { getCurrentSeason, getMockPaper } from "@/lib/data/papers";
 
 function classifyError(raw: string): { kind: "schema" | "auth" | "fk" | "generic"; hint: string } {
   const lower = raw.toLowerCase();
@@ -56,6 +56,18 @@ export default async function MockHallPage({
   const totalCompleted = attempts.filter((a) => a.status === "scored").length;
   const finalErrorInfo = errorInfo ?? (dataLoadError ? classifyError(dataLoadError) : null);
 
+  // Render the paper's display title in the resume banner instead of the
+  // raw paperId (custom papers have ugly ids like custom-abc12345-xyz).
+  let recentInProgressTitle: string | null = null;
+  if (recentInProgress) {
+    try {
+      const paper = await getMockPaper(recentInProgress.paperId);
+      recentInProgressTitle = paper?.title ?? recentInProgress.paperId;
+    } catch {
+      recentInProgressTitle = recentInProgress.paperId;
+    }
+  }
+
   return (
     <div className="hall">
       {/* HEADER */}
@@ -100,7 +112,7 @@ export default async function MockHallPage({
         <section className="hall-resume">
           <div className="hall-resume-info">
             <span className="hall-resume-tag">UNFINISHED · 未完成模考</span>
-            <h3 className="hall-resume-title">{recentInProgress.paperId}</h3>
+            <h3 className="hall-resume-title">{recentInProgressTitle ?? recentInProgress.paperId}</h3>
             <p className="hall-resume-when">
               开始于 {new Date(recentInProgress.startedAt).toLocaleString("zh-CN")}
             </p>

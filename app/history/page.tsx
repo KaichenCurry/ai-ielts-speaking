@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { listMockAttemptsForUser } from "@/lib/data/attempts";
+import { listMockPapers } from "@/lib/data/papers";
 import { getServerUser } from "@/lib/supabase/auth-server";
 
 const STATUS_LABEL: Record<string, { label: string; tone: string }> = {
@@ -16,7 +17,14 @@ export default async function HistoryPage() {
     redirect("/login");
   }
 
-  const attempts = await listMockAttemptsForUser(user.id, 200);
+  const [attempts, papers] = await Promise.all([
+    listMockAttemptsForUser(user.id, 200),
+    listMockPapers(),
+  ]);
+  // Build a paperId → title lookup so the list can render human-readable
+  // titles instead of raw ids like "paper-2026-jan-apr-03" or
+  // "custom-abc12345-l2k3j4k5j".
+  const paperTitleById = new Map(papers.map((p) => [p.id, p.title]));
   const scoredAttempts = attempts.filter((a) => a.status === "scored");
   const bestScore = scoredAttempts.reduce<number | null>((best, a) => {
     if (a.totalScore == null) return best;
@@ -81,7 +89,7 @@ export default async function HistoryPage() {
                     <span className={`history-item-status history-item-status-${status.tone}`}>{status.label}</span>
                   </div>
                   <div className="history-item-mid">
-                    <p className="history-item-season">{attempt.season}</p>
+                    <p className="history-item-season">{paperTitleById.get(attempt.paperId) ?? attempt.season}</p>
                     <p className="history-item-date">{new Date(attempt.startedAt).toLocaleString("zh-CN")}</p>
                   </div>
                   <div className="history-item-score-row">

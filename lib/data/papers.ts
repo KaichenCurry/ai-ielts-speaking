@@ -160,9 +160,28 @@ export function isCustomPaper(paperId: string) {
  * only in memory by default; mock_attempts.paper_id won't satisfy its
  * foreign key unless we upsert here first. Idempotent — repeat calls
  * are no-ops thanks to onConflict: id.
+ *
+ * SECURITY: only papers whose id matches one currently in the generated
+ * set (or already in mock_papers) are allowed to upsert. This prevents
+ * an unauthenticated/guest attacker from minting arbitrary paper rows
+ * by hitting `/mock/<forged-id>/intro` and triggering a write.
  */
 export async function ensureMockPaperPersisted(paper: MockPaper): Promise<void> {
   if (!isSupabaseConfigured()) return;
+
+  // Custom papers are created by createCustomMockPaper and are already in
+  // mock_papers — they should never reach this code path, but if they do
+  // it's safe (the row exists; upsert is a no-op).
+  if (isCustomPaper(paper.id)) return;
+
+  // Verify the paper id actually came from our generator. Anything else
+  // is a forgery attempt.
+  const generated = await listGeneratedPapers();
+  const isLegitimate = generated.some((p) => p.id === paper.id);
+  if (!isLegitimate) {
+    throw new Error("Unknown paper id; refusing to persist.");
+  }
+
   const supabase = createSupabaseServerClient();
   const { error } = await supabase
     .from("mock_papers")

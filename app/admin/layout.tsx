@@ -10,7 +10,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   }
 
   if (!isAdminEmail(user.email)) {
-    redirect("/practice");
+    // /practice was deleted in the relaunch; send non-admins back to the
+    // public homepage. (proxy.ts also enforces this — kept here as defence
+    // in depth for direct-RSC access.)
+    redirect("/");
   }
 
   return <>{children}</>;

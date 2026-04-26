@@ -118,19 +118,35 @@ function buildOverallSummary(results: LiveScoringResult[], aggregate: ScoreBreak
   return `整场模考综合 ${aggregate.total.toFixed(1)} 分。${partSummaries}。${dimensionHint}`.trim();
 }
 
+type TaskOutcome<R> = { ok: true; value: R } | { ok: false; error: unknown };
+
+/**
+ * Run `task` for each item with up to `limit` concurrent workers. UNLIKE a
+ * naive Promise.all this never short-circuits on the first rejection: each
+ * task's success/failure is captured independently. The caller decides
+ * whether a partial outcome is acceptable. This lets the mock-submit
+ * endpoint score whatever it can, persist successful segments, and report
+ * a partial result instead of marking the whole attempt failed if a single
+ * upstream OpenAI call hiccups.
+ */
 async function runWithConcurrency<T, R>(
   items: T[],
   limit: number,
   task: (item: T, index: number) => Promise<R>,
-): Promise<R[]> {
-  const results = new Array<R>(items.length);
+): Promise<TaskOutcome<R>[]> {
+  const results = new Array<TaskOutcome<R>>(items.length);
   let cursor = 0;
   async function worker() {
     while (true) {
       const i = cursor;
       cursor += 1;
       if (i >= items.length) return;
-      results[i] = await task(items[i], i);
+      try {
+        const value = await task(items[i], i);
+        results[i] = { ok: true, value };
+      } catch (error) {
+        results[i] = { ok: false, error };
+      }
     }
   }
   const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
@@ -233,9 +249,11 @@ export async function POST(request: Request) {
     if (attempt.paperId !== paperId) {
       return NextResponse.json({ error: "Paper mismatch for this attempt." }, { status: 400 });
     }
-    if (attempt.status === "scored") {
-      // already scored — return the same attemptId so the client navigates to the report
-      return NextResponse.json({ attemptId: attempt.id, status: "scored" });
+    if (attempt.status === "scored" || attempt.status === "failed") {
+      // Already terminal — don't re-spend OpenAI tokens. Client navigates to
+      // the report; if the previous run was failed, the report page surfaces
+      // that and offers a retry path.
+      return NextResponse.json({ attemptId: attempt.id, status: attempt.status });
     }
     if (!plan) {
       return NextResponse.json({ error: "Paper not available." }, { status: 404 });
@@ -245,7 +263,7 @@ export async function POST(request: Request) {
     // is still reflected as "submitted but unscored" rather than stuck "in_progress".
     await markAttemptSubmitted(attempt.id, user.id);
 
-    const scoredResults = await runWithConcurrency(validatedItems, SCORE_CONCURRENCY, async (item) => {
+    const outcomes = await runWithConcurrency(validatedItems, SCORE_CONCURRENCY, async (item) => {
       const sessionIdHint = `${attempt.id}::${item.sectionIndex}::${item.questionId}`;
       const result = await scoreSpeakingAnswer({
         part: item.part,
@@ -266,6 +284,25 @@ export async function POST(request: Request) {
       return result;
     });
 
+    const scoredResults = outcomes
+      .filter((o): o is { ok: true; value: Awaited<ReturnType<typeof scoreSpeakingAnswer>> } => o.ok)
+      .map((o) => o.value);
+    const failedCount = outcomes.length - scoredResults.length;
+
+    if (scoredResults.length === 0) {
+      // Total wipeout — nothing scored. Mark failed so the report page can
+      // surface a clear error and the user can retry.
+      console.error(
+        "Mock submit: 0/" + outcomes.length + " segments scored",
+        outcomes.filter((o) => !o.ok).map((o) => (o as { ok: false; error: unknown }).error),
+      );
+      await markAttemptFailed(attempt.id, user.id, "评分服务返回失败，请重试");
+      return NextResponse.json(
+        { error: "评分服务暂时无法完成本次提交，请稍后重试。" },
+        { status: 502 },
+      );
+    }
+
     const aggregate = aggregateBandScores(scoredResults);
     const summary = buildOverallSummary(scoredResults, aggregate);
 
@@ -274,7 +311,9 @@ export async function POST(request: Request) {
       userId: user.id,
       totalScore: aggregate.total,
       bandScores: aggregate,
-      summary,
+      summary: failedCount > 0
+        ? `${summary}（注：${failedCount} 道题评分失败，已按可用题目计分）`
+        : summary,
     });
 
     return NextResponse.json({
@@ -282,8 +321,11 @@ export async function POST(request: Request) {
       status: "scored",
       totalScore: aggregate.total,
       bandScores: aggregate,
+      partialFailures: failedCount,
     });
   } catch (error) {
+    // Log full error server-side; surface a generic message to the client
+    // so we don't leak schema names, FK constraint names, or upstream details.
     console.error("Mock submit failed:", error);
     if (attemptIdForFailure && userIdForFailure) {
       try {
@@ -293,7 +335,7 @@ export async function POST(request: Request) {
       }
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to submit mock attempt." },
+      { error: "提交失败，请稍后重试。" },
       { status: 500 },
     );
   }

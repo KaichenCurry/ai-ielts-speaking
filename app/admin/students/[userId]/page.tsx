@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { PageShell, SectionCard } from "@/components/page-shell";
 import { Badge } from "@/components/ui";
 import { RadarChart } from "@/components/charts/radar-chart";
@@ -40,7 +39,29 @@ export default async function AdminStudentDetailPage({
   const student = students.find((item) => item.userId === userId);
 
   if (sessions.length === 0) {
-    notFound();
+    return (
+      <PageShell
+        title={student?.email || `学生 ${userId.substring(0, 8)}`}
+        description="该学生当前没有可见的练习记录。"
+        actions={
+          <Link className="link-button secondary" href="/admin/students">
+            返回学生列表
+          </Link>
+        }
+      >
+        <SectionCard title="暂无练习数据">
+          <p>这位学生尚未生成任何 practice_sessions 记录，或记录被 RLS 隔离了。</p>
+          <p className="inline-note">
+            如果学生看上去明明做过模考，请检查：
+          </p>
+          <ul className="muted-list">
+            <li>Supabase Authentication → Users，确认 user_id 没有被合并/重建</li>
+            <li>practice_sessions 表里 user_id 列是否真的有这位学生的数据</li>
+            <li>RLS policy 是否允许 service_role 读全表（migrations/001_enable_rls.sql）</li>
+          </ul>
+        </SectionCard>
+      </PageShell>
+    );
   }
 
   const totalSessions = sessions.length;

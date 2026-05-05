@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { BadCasePanel } from "@/components/admin/bad-case-panel";
 import { PageShell, SectionCard } from "@/components/page-shell";
 import { ReviewActionPanel } from "@/components/admin/review-action-panel";
@@ -38,7 +38,9 @@ function reviewStatusLabel(status: string) {
 async function requireAdminAccess() {
   const user = await getServerUser();
   if (!user || !isAdminEmail(user.email)) {
-    redirect("/practice");
+    // /practice was removed in the relaunch — send unauthorized users to the
+    // public homepage instead, which is what the admin layout already does.
+    redirect("/");
   }
 }
 
@@ -81,7 +83,29 @@ export default async function AdminStudentSessionDetailPage({
   const session = await getPracticeSessionById(sessionId);
 
   if (!session || session.userId !== userId) {
-    notFound();
+    return (
+      <PageShell
+        title="会话详情"
+        description="未找到该练习会话，或该会话不属于此学生。"
+        actions={
+          <div className="action-row">
+            <Link className="link-button secondary" href={`/admin/students/${userId}`}>
+              返回学生详情
+            </Link>
+            <Link className="link-button secondary" href="/admin/students">
+              返回学生列表
+            </Link>
+          </div>
+        }
+      >
+        <SectionCard title="找不到该练习会话">
+          <p>session id <code>{sessionId}</code> 在 practice_sessions 表里找不到，或属于另一个学生。</p>
+          <p className="inline-note">
+            常见原因：会话已被删除、user_id 不匹配（学生升级账号导致 ID 变更），或 RLS 策略限制了 admin 读取。
+          </p>
+        </SectionCard>
+      </PageShell>
+    );
   }
 
   const [promptVersions, badCases, students] = await Promise.all([

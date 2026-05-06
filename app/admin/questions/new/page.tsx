@@ -10,7 +10,7 @@ async function requireAdminAccess() {
   const user = await getServerUser();
 
   if (!user || !isAdminEmail(user.email)) {
-    redirect("/practice");
+    redirect("/");
   }
 }
 
